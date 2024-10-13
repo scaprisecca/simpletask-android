@@ -237,5 +237,8 @@ You should have received a copy of the GNU General Public License along with Sim
                     android:name="android.support.FILE_PROVIDER_PATHS"
                     android:resource="@xml/provider_paths"/>
         </provider>
+        <activity
+            android:name=".CalendarViewActivity"
+            android:label="@string/calendar_view_title" />
     </application>
 </manifest>

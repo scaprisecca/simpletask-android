@@ -1,19 +1,19 @@
 {
     // See https://go.microsoft.com/fwlink/?LinkId=733558
     // for the documentation about the tasks.json format
-    "version": "2.0.0",
+    "version": "0.1.0",
     "command": "gradlew",
+    "isShellCommand": true,
     "args": [],
+    "showOutput": "always",
     "tasks": [
         {
-            "label": "clean",
-            "type": "shell",
-            "command": "gradlew",
+            "taskName": "clean",
             "args": [
-                "clean",
-                "clean",
-                "assembleEncryptedDebug"
+                "clean", "assembleEncryptedDebug"
             ],
+            "isBuildCommand": true,
+            "isWatching": false,
             "problemMatcher": {
                 "owner": "cpp",
                 "fileLocation": [
@@ -27,10 +27,6 @@
                     "severity": 1,
                     "message": 5
                 }
-            },
-            "group": {
-                "_id": "build",
-                "isDefault": false
             }
         }
     ]

@@ -626,6 +626,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                     binding.toolbar.visibility = View.GONE
                     true
                 }))
+        menu.add(Menu.NONE, R.id.menu_calendar_view, Menu.NONE, R.string.calendar_view)
         return true
     }
 
@@ -857,7 +858,7 @@ class Simpletask : ThemedNoActionBarActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         Log.i(TAG, "onMenuItemSelected: " + item.itemId)
         val checkedTasks = TodoApplication.todoList.selectedTasks
-        when (item.itemId) {
+        return when (item.itemId) {
             androidId.home -> {
                 handleMode(mapOf(
                         Mode.SAVED_FILTER_DRAWER to { closeDrawer(SAVED_FILTER_DRAWER) },
@@ -930,9 +931,13 @@ class Simpletask : ThemedNoActionBarActivity() {
                     }
                 }
             }
-            else -> return super.onOptionsItemSelected(item)
+            R.id.menu_calendar_view -> {
+                val intent = Intent(this, CalendarViewActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
-        return true
     }
 
     private fun createCalendarAppointment(checkedTasks: List<Task>) {

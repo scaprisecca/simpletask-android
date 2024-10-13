@@ -421,4 +421,6 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="pin_notification">Pin as notification</string>
     <string name="channel_name">Pin notifications</string>
     <string name="channel_description">Channel for tasks pinned as notifications</string>
+    <string name="calendar_view">Calendar View</string>
+    <string name="calendar_view_title">Task Calendar</string>
 </resources>
