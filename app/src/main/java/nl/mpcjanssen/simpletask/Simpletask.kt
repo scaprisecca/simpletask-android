@@ -930,6 +930,10 @@ class Simpletask : ThemedNoActionBarActivity() {
                     }
                 }
             }
+            R.id.calendar_view -> {
+                startActivity(Intent(this, CalendarViewActivity::class.java))
+                return true
+            }
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -1244,19 +1248,7 @@ class Simpletask : ThemedNoActionBarActivity() {
             if (hasQueries) {
                 binding.navDrawer.choiceMode = AbsListView.CHOICE_MODE_NONE
                 binding.navDrawer.isLongClickable = true
-                binding.navDrawer.onItemClickListener = AdapterView.OnItemClickListener { _, _, position, _ ->
-                    queries[position].let {
-                        val query = it.second.query
-                        intent = query.saveInIntent(intent)
-                        TodoApplication.config.mainQuery = query
-                        taskAdapter.setFilteredTasks(this@Simpletask, query)
-                        runOnUiThread {
-                            closeDrawer(SAVED_FILTER_DRAWER)
-                            updateQuickFilterDrawer()
-                        }
-                    }
-
-                }
+                binding.navDrawer.onItemClickListener = DrawerItemClickListener()
                 binding.navDrawer.onItemLongClickListener = OnItemLongClickListener { _, view, position, _ ->
                     val query = queries[position]
                     val popupMenu = PopupMenu(this@Simpletask, view)

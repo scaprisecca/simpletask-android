@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/dayNumber"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:gravity="center"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:id="@+id/taskIndicators"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:spacing="2dp">
+
+        <View
+            android:id="@+id/dueDot"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:layout_margin="1dp"
+            android:background="@drawable/task_dot_due"
+            android:visibility="gone" />
+
+        <View
+            android:id="@+id/thresholdDot"
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:layout_margin="1dp"
+            android:background="@drawable/task_dot_threshold"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</LinearLayout> 
