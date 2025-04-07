@@ -1,11 +1,11 @@
 package nl.mpcjanssen.simpletask
 
+import android.app.DatePickerDialog
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GestureDetectorCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import hirondelle.date4j.DateTime
@@ -18,6 +18,7 @@ class CalendarViewActivity : AppCompatActivity() {
     private lateinit var currentDayText: TextView
     private var currentDate = DateTime.today(TimeZone.getDefault())
     private val calendarAdapter = CalendarAdapter()
+    private lateinit var gestureDetector: GestureDetectorCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,15 +33,90 @@ class CalendarViewActivity : AppCompatActivity() {
         calendarGrid.layoutManager = GridLayoutManager(this, 8) // 1 column for week number + 7 days
         calendarGrid.adapter = calendarAdapter
 
+        // Set up gesture detector for swipe navigation
+        gestureDetector = GestureDetectorCompat(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
+                e1?.let { start ->
+                    e2?.let { end ->
+                        val diffX = end.x - start.x
+                        if (Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                            if (diffX > 0) {
+                                // Swipe right - show previous month
+                                showPreviousMonth()
+                            } else {
+                                // Swipe left - show next month
+                                showNextMonth()
+                            }
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+        })
+
+        // Set up touch listener for swipe gestures
+        calendarGrid.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
+        }
+
         // Set up click listeners
         monthYearText.setOnClickListener {
-            // TODO: Show month picker
+            showMonthPicker()
+        }
+
+        findViewById<View>(R.id.prevMonthButton).setOnClickListener {
+            showPreviousMonth()
+        }
+
+        findViewById<View>(R.id.nextMonthButton).setOnClickListener {
+            showNextMonth()
         }
 
         findViewById<View>(R.id.addTaskButton).setOnClickListener {
             // TODO: Launch add task activity
         }
 
+        updateCalendarView()
+    }
+
+    private fun showMonthPicker() {
+        val today = DateTime.today(TimeZone.getDefault())
+        DatePickerDialog(
+            this,
+            { _, year, month, _ ->
+                currentDate = DateTime.forDateOnly(
+                    year,
+                    month + 1,
+                    1
+                )
+                updateCalendarView()
+            },
+            currentDate.year!!,
+            currentDate.month!! - 1,
+            1
+        ).apply {
+            setTitle("Select Month")
+            datePicker.apply {
+                // Hide day picker since we only want month/year selection
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    calendarViewShown = false
+                    spinnersShown = true
+                }
+            }
+        }.show()
+    }
+
+    private fun showPreviousMonth() {
+        currentDate = currentDate.minusDays(currentDate.day!! - 1) // Go to first day of month
+            .minusDays(1) // Go to last day of previous month
+            .getStartOfMonth() // Go to first day of that month
+        updateCalendarView()
+    }
+
+    private fun showNextMonth() {
+        currentDate = currentDate.plusDays(currentDate.getNumDaysInMonth() - currentDate.day!! + 1)
         updateCalendarView()
     }
 
