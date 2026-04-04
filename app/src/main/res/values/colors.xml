@@ -24,4 +24,7 @@
     <color name="simple_orange_dark">#ffff8800</color>
     <color name="simple_red_light">#ffff4444</color>
     <color name="simple_red_dark">#ffcc0000</color>
+    <color name="calendar_due_dot">#ffcc0000</color>
+    <color name="calendar_threshold_dot">#ff0099cc</color>
+    <color name="calendar_day_selected">#3320b6e8</color>
 </resources>

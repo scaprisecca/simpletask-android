@@ -99,6 +99,12 @@ You should have received a copy of the GNU General Public License along with Tod
         <item>dark</item>
     </string-array>
 
+    <string-array name="scheduled_date_visibility_values">
+        <item>both</item>
+        <item>due</item>
+        <item>threshold</item>
+    </string-array>
+
     <string-array name="task_text_ellipsizing">
         <item>@string/task_text_ellipsizing_none</item>
         <item>@string/task_text_ellipsizing_start</item>
@@ -176,6 +182,7 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="lua_config"                     translatable="false">lua_config</string>
     <string name="ui_complete_checkbox"           translatable="false">ui_complete_checkbox</string>
     <string name="ui_show_calendarview"           translatable="false">ui_show_calendarview</string>
+    <string name="ui_calendar_scheduled_dates"    translatable="false">ui_calendar_scheduled_dates</string>
     <string name="ui_last_scroll_position"        translatable="false">ui_last_scroll_position</string>
     <string name="ui_last_scroll_offset"          translatable="false">ui_last_scroll_offset</string>
     <string name="changes_pending"                translatable="false">changes_pending</string>

@@ -65,6 +65,10 @@ class TodoList(val config: Config) {
         return todoItems.size
     }
 
+    fun allTasks(): List<Task> {
+        return todoItems.toList()
+    }
+
     val priorities: ArrayList<Priority>
 
         get() {

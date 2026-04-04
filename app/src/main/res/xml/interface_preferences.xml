@@ -53,6 +53,14 @@
         android:key="@string/ui_show_calendarview"
         android:title="@string/show_calendarview_title"
         />
+    <ListPreference
+        android:defaultValue="both"
+        android:entries="@array/scheduled_date_visibility_entries"
+        android:entryValues="@array/scheduled_date_visibility_values"
+        android:key="@string/ui_calendar_scheduled_dates"
+        android:summary="%s"
+        android:title="@string/calendar_scheduled_dates_title"
+        />
     <CheckBoxPreference
             android:defaultValue="false"
             android:key="@string/use_uuids"

@@ -94,6 +94,10 @@
                         />
                 </LinearLayout>
 
+                <include
+                    android:id="@+id/calendar_mode"
+                    layout="@layout/calendar_mode" />
+
 
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/fab"

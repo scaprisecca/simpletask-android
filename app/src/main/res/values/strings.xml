@@ -219,6 +219,20 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="show_fast_scroll_title">Fast scrolling</string>
     <string name="show_fast_scroll_summary">Use fast scrolling for longer task lists</string>
     <string name="show_calendarview_title">Use calendar for date entry</string>
+    <string name="calendar_mode_title">Calendar</string>
+    <string name="calendar_scheduled_dates_title">Calendar scheduled dates</string>
+    <string name="calendar_scheduled_dates_both">Due and threshold</string>
+    <string name="calendar_scheduled_dates_due">Due only</string>
+    <string name="calendar_scheduled_dates_threshold">Threshold only</string>
+    <string name="calendar_mode_empty_day">No scheduled tasks for this day.</string>
+    <string name="calendar_previous_month">Previous month</string>
+    <string name="calendar_next_month">Next month</string>
+    <string name="calendar_pick_month">Choose month</string>
+    <string name="calendar_day_content_none">%1$s. No scheduled tasks.</string>
+    <string name="calendar_day_content_due">%1$s. Has due tasks.</string>
+    <string name="calendar_day_content_threshold">%1$s. Has threshold tasks.</string>
+    <string name="calendar_day_content_both">%1$s. Has due and threshold tasks.</string>
+    <string name="calendar_day_content_selected">%1$s Selected.</string>
     <string name="sort_case_sensitive_title">Sort case-sensitive</string>
     <string name="sort_case_sensitive_summary">Observe case when sorting lists, tags and saved filters.</string>
     <string name="use_create_as_threshold_title">Create is threshold</string>
@@ -421,4 +435,9 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="pin_notification">Pin as notification</string>
     <string name="channel_name">Pin notifications</string>
     <string name="channel_description">Channel for tasks pinned as notifications</string>
+    <string-array name="scheduled_date_visibility_entries">
+        <item>@string/calendar_scheduled_dates_both</item>
+        <item>@string/calendar_scheduled_dates_due</item>
+        <item>@string/calendar_scheduled_dates_threshold</item>
+    </string-array>
 </resources>

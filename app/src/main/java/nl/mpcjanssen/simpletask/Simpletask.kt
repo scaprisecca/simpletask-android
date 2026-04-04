@@ -32,6 +32,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import android.util.Log
 import android.view.*
 import android.view.inputmethod.InputMethodManager
@@ -45,10 +46,15 @@ import androidx.core.app.NotificationManagerCompat
 
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.adapters.DrawerAdapter
+import nl.mpcjanssen.simpletask.calendar.CalendarListSnapshot
+import nl.mpcjanssen.simpletask.calendar.CalendarModeState
+import nl.mpcjanssen.simpletask.calendar.CalendarMonthPagerAdapter
+import nl.mpcjanssen.simpletask.calendar.CalendarTaskProjector
 import nl.mpcjanssen.simpletask.databinding.MainBinding
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.*
 import nl.mpcjanssen.simpletask.util.*
+import org.json.JSONObject
 import java.io.File
 import java.util.*
 import kotlin.collections.ArrayList
@@ -69,6 +75,7 @@ class Simpletask : ThemedNoActionBarActivity() {
     private var options_menu: Menu? = null
 
     lateinit var taskAdapter: TaskAdapter
+    lateinit var calendarTaskAdapter: TaskAdapter
     private var m_broadcastReceiver: BroadcastReceiver? = null
     private var localBroadcastManager: LocalBroadcastManager? = null
 
@@ -79,6 +86,14 @@ class Simpletask : ThemedNoActionBarActivity() {
     private lateinit var binding: MainBinding
 
     private val uiHandler = UiHandler()
+    private val calendarTaskProjector = CalendarTaskProjector()
+    private lateinit var calendarMonthPagerAdapter: CalendarMonthPagerAdapter
+    private var calendarState = CalendarModeState()
+    private var restoringCalendarPager = false
+    private val calendarQuery = Query("calendarui").apply {
+        hideCompleted = true
+        hideHidden = true
+    }
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,117 +113,11 @@ class Simpletask : ThemedNoActionBarActivity() {
 
         var itemTouchHelper: ItemTouchHelper? = null
 
-        taskAdapter = TaskAdapter(
-                completeAction = {
-                    completeTasks(it)
-                    // Update the tri state checkbox
-                    handleMode(mapOf(Mode.SELECTION to { invalidateOptionsMenu() }))
-                    TodoApplication.todoList.notifyTasklistChanged(TodoApplication.config.todoFile, save = false, refreshMainUI = true)
-                },
-                unCompleteAction = {
-                    uncompleteTasks(it)
-                    // Update the tri state checkbox
-                    handleMode(mapOf(Mode.SELECTION to { invalidateOptionsMenu() }))
-                    TodoApplication.todoList.notifyTasklistChanged(TodoApplication.config.todoFile, true)
-                },
-                onClickAction = {
-                    val newSelectedState = !TodoApplication.todoList.isSelected(it)
-                    if (newSelectedState) {
-                        TodoApplication.todoList.selectTasks(listOf(it))
-                    } else {
-                        TodoApplication.todoList.unSelectTasks(listOf(it))
-                    }
-                    invalidateOptionsMenu()
-                },
-                onLongClickAction = {
-                    val links = ArrayList<String>()
-                    val actions = ArrayList<Action>()
-                    val t = it
-                    for (link in t.links) {
-                        actions.add(Action.LINK)
-                        links.add(link)
-                    }
-                    for (number in t.phoneNumbers) {
-                        actions.add(Action.PHONE)
-                        links.add(number)
-                        actions.add(Action.SMS)
-                        links.add(number)
-                    }
-                    for (mail in t.mailAddresses) {
-                        actions.add(Action.MAIL)
-                        links.add(mail)
-                    }
-                    if (actions.size != 0) {
-
-                        val titles = ArrayList<String>()
-                        for (i in links.indices) {
-                            when (actions[i]) {
-                                Action.SMS -> titles.add(i, getString(R.string.action_pop_up_sms) + links[i])
-                                Action.PHONE -> titles.add(i, getString(R.string.action_pop_up_call) + links[i])
-                                else -> titles.add(i, links[i])
-                            }
-                        }
-                        val build = AlertDialog.Builder(this@Simpletask)
-                        build.setTitle(R.string.task_action)
-                        val titleArray = titles.toArray<String>(arrayOfNulls<String>(titles.size))
-                        build.setItems(titleArray) { _, which ->
-                            val actionIntent: Intent
-                            val url = links[which]
-                            Log.i(TAG, "" + actions[which] + ": " + url)
-                            when (actions[which]) {
-                                Action.LINK -> when {
-                                    url.startsWith("todo://") -> {
-                                        val todoFolder = TodoApplication.config.todoFile.parentFile
-                                        val newName = File(todoFolder, url.substring(7))
-                                        TodoApplication.app.switchTodoFile(newName)
-                                    }
-                                    url.startsWith("root://") -> {
-                                        val rootFolder = TodoApplication.config.localFileRoot
-                                        val file = File(rootFolder, url.substring(7))
-                                        actionIntent = Intent(Intent.ACTION_VIEW)
-
-                                        val contentUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider",file)
-                                        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
-                                        actionIntent.setDataAndType(contentUri, mime)
-                                        actionIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        startActivity(actionIntent)
-                                    }
-                                    else -> try {
-                                        actionIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                        startActivity(actionIntent)
-                                    } catch (e: ActivityNotFoundException) {
-                                        Log.i(TAG, "No handler for task action $url")
-                                        showToastLong(TodoApplication.app, "No handler for $url")
-                                    }
-                                }
-                                Action.PHONE -> {
-                                    actionIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(url)))
-                                    startActivity(actionIntent)
-                                }
-                                Action.SMS -> {
-                                    actionIntent = Intent(Intent.ACTION_VIEW, Uri.parse("sms:" + Uri.encode(url)))
-                                    startActivity(actionIntent)
-                                }
-                               Action.MAIL -> {
-                                    actionIntent = Intent(Intent.ACTION_SEND, Uri.parse(url))
-                                    actionIntent.putExtra(Intent.EXTRA_EMAIL,
-                                            arrayOf(url))
-                                    actionIntent.type = "text/plain"
-                                    startActivity(actionIntent)
-                                }
-                            }
-                        }
-                        build.create().show()
-                    }
-                    true
-                },
-                startDrag = { viewHolder ->
-                    // The itemTouchHelper is created very soon, it just
-                    // needs a reference to the taskAdapter and listView
-                    var theItemTouchHelper = itemTouchHelper ?: throw IllegalStateException()
-
-                    theItemTouchHelper.startDrag(viewHolder)
-                })
+        taskAdapter = createMainTaskAdapter {
+            val theItemTouchHelper = itemTouchHelper ?: throw IllegalStateException()
+            theItemTouchHelper.startDrag(it)
+        }
+        calendarTaskAdapter = createCalendarTaskAdapter()
 
         binding = MainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -216,6 +125,38 @@ class Simpletask : ThemedNoActionBarActivity() {
         val itemTouchHelperCallback = DragTasksCallback(this.taskAdapter)
         itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
         itemTouchHelper.attachToRecyclerView(listView)
+        calendarMonthPagerAdapter = CalendarMonthPagerAdapter(
+            onDaySelected = { selectCalendarDate(it) },
+            indicatorsForMonth = { month ->
+                projectCalendarData(
+                    selectedDate = calendarState.selectedDate ?: todayAsString,
+                    visibleMonth = month
+                ).indicatorsByDate
+            }
+        )
+        binding.calendarMode.calendarMonthPager.adapter = calendarMonthPagerAdapter
+        binding.calendarMode.calendarDayList.layoutManager = LinearLayoutManager(this)
+        binding.calendarMode.calendarDayList.adapter = calendarTaskAdapter
+        binding.calendarMode.calendarPreviousMonth.setOnClickListener {
+            binding.calendarMode.calendarMonthPager.currentItem =
+                binding.calendarMode.calendarMonthPager.currentItem - 1
+        }
+        binding.calendarMode.calendarNextMonth.setOnClickListener {
+            binding.calendarMode.calendarMonthPager.currentItem =
+                binding.calendarMode.calendarMonthPager.currentItem + 1
+        }
+        binding.calendarMode.calendarMonthTitle.setOnClickListener {
+            openCalendarMonthPicker()
+        }
+        binding.calendarMode.calendarMonthPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                if (restoringCalendarPager) {
+                    return
+                }
+                val visibleMonth = CalendarMonthPagerAdapter.monthForPosition(position)
+                onCalendarMonthChanged(visibleMonth)
+            }
+        })
 
         localBroadcastManager = TodoApplication.app.localBroadCastManager
 
@@ -234,7 +175,6 @@ class Simpletask : ThemedNoActionBarActivity() {
                     }
                 } else if (receivedIntent.action == Constants.BROADCAST_TASKLIST_CHANGED) {
                     Log.i(TAG, "Tasklist changed, refiltering adapter")
-                    taskAdapter.setFilteredTasks(this@Simpletask, TodoApplication.config.mainQuery)
                     runOnUiThread {
                         uiHandler.forEvent(Event.TASK_LIST_CHANGED)
                     }
@@ -261,6 +201,7 @@ class Simpletask : ThemedNoActionBarActivity() {
         localBroadcastManager!!.registerReceiver(broadcastReceiver, intentFilter)
         m_broadcastReceiver = broadcastReceiver
         setSupportActionBar(binding.mainActionbar)
+        calendarState = CalendarModeState.fromBundle(savedInstanceState) ?: CalendarModeState()
 
         // Replace drawables if the theme is dark
         if (TodoApplication.config.isDarkTheme || TodoApplication.config.isBlackTheme) {
@@ -324,6 +265,11 @@ class Simpletask : ThemedNoActionBarActivity() {
         m_drawerToggle?.syncState()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        calendarState.toBundle(outState)
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         m_drawerToggle?.onConfigurationChanged(newConfig)
@@ -339,7 +285,9 @@ class Simpletask : ThemedNoActionBarActivity() {
 
 
     override fun onPause() {
-        listView.let{updateScrollPosition(it)}
+        if (!calendarState.active) {
+            listView.let { updateScrollPosition(it) }
+        }
         super.onPause()
     }
 
@@ -360,6 +308,8 @@ class Simpletask : ThemedNoActionBarActivity() {
                 },
                 Mode.QUICK_FILTER_DRAWER to {
                     closeDrawer(QUICK_FILTER_DRAWER)
+                }, Mode.CALENDAR to {
+            exitCalendarMode()
                 }, Mode.SELECTION to {
             closeSelectionMode()
         }, Mode.MAIN to {
@@ -395,6 +345,258 @@ class Simpletask : ThemedNoActionBarActivity() {
         } else {
             uiHandler.forEvent(Event.CLEAR_SELECTION)
         }
+    }
+
+    private fun createMainTaskAdapter(startDragAction: (RecyclerView.ViewHolder) -> Unit): TaskAdapter {
+        return TaskAdapter(
+            completeAction = {
+                completeTasks(it)
+                handleMode(mapOf(Mode.SELECTION to { invalidateOptionsMenu() }))
+                TodoApplication.todoList.notifyTasklistChanged(TodoApplication.config.todoFile, save = false, refreshMainUI = true)
+            },
+            unCompleteAction = {
+                uncompleteTasks(it)
+                handleMode(mapOf(Mode.SELECTION to { invalidateOptionsMenu() }))
+                TodoApplication.todoList.notifyTasklistChanged(TodoApplication.config.todoFile, true)
+            },
+            onClickAction = {
+                val newSelectedState = !TodoApplication.todoList.isSelected(it)
+                if (newSelectedState) {
+                    TodoApplication.todoList.selectTasks(listOf(it))
+                } else {
+                    TodoApplication.todoList.unSelectTasks(listOf(it))
+                }
+                invalidateOptionsMenu()
+            },
+            onLongClickAction = { showTaskLinks(it) },
+            startDrag = startDragAction
+        )
+    }
+
+    private fun createCalendarTaskAdapter(): TaskAdapter {
+        return TaskAdapter(
+            completeAction = {
+                completeTasks(it)
+                refreshCalendarMode()
+            },
+            unCompleteAction = {
+                uncompleteTasks(it)
+                refreshCalendarMode()
+            },
+            onClickAction = {
+                TodoApplication.todoList.editTasks(this, listOf(it), "")
+            },
+            onLongClickAction = { showTaskLinks(it) },
+            startDrag = {}
+        )
+    }
+
+    private fun showTaskLinks(task: Task): Boolean {
+        val links = ArrayList<String>()
+        val actions = ArrayList<Action>()
+        for (link in task.links) {
+            actions.add(Action.LINK)
+            links.add(link)
+        }
+        for (number in task.phoneNumbers) {
+            actions.add(Action.PHONE)
+            links.add(number)
+            actions.add(Action.SMS)
+            links.add(number)
+        }
+        for (mail in task.mailAddresses) {
+            actions.add(Action.MAIL)
+            links.add(mail)
+        }
+        if (actions.isEmpty()) {
+            return true
+        }
+
+        val titles = ArrayList<String>()
+        for (i in links.indices) {
+            when (actions[i]) {
+                Action.SMS -> titles.add(i, getString(R.string.action_pop_up_sms) + links[i])
+                Action.PHONE -> titles.add(i, getString(R.string.action_pop_up_call) + links[i])
+                else -> titles.add(i, links[i])
+            }
+        }
+        val build = AlertDialog.Builder(this@Simpletask)
+        build.setTitle(R.string.task_action)
+        val titleArray = titles.toArray<String>(arrayOfNulls<String>(titles.size))
+        build.setItems(titleArray) { _, which ->
+            val actionIntent: Intent
+            val url = links[which]
+            Log.i(TAG, "" + actions[which] + ": " + url)
+            when (actions[which]) {
+                Action.LINK -> when {
+                    url.startsWith("todo://") -> {
+                        val todoFolder = TodoApplication.config.todoFile.parentFile
+                        val newName = File(todoFolder, url.substring(7))
+                        TodoApplication.app.switchTodoFile(newName)
+                    }
+                    url.startsWith("root://") -> {
+                        val rootFolder = TodoApplication.config.localFileRoot
+                        val file = File(rootFolder, url.substring(7))
+                        actionIntent = Intent(Intent.ACTION_VIEW)
+
+                        val contentUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", file)
+                        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
+                        actionIntent.setDataAndType(contentUri, mime)
+                        actionIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        startActivity(actionIntent)
+                    }
+                    else -> try {
+                        actionIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        startActivity(actionIntent)
+                    } catch (e: ActivityNotFoundException) {
+                        Log.i(TAG, "No handler for task action $url")
+                        showToastLong(TodoApplication.app, "No handler for $url")
+                    }
+                }
+                Action.PHONE -> {
+                    actionIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(url)))
+                    startActivity(actionIntent)
+                }
+                Action.SMS -> {
+                    actionIntent = Intent(Intent.ACTION_VIEW, Uri.parse("sms:" + Uri.encode(url)))
+                    startActivity(actionIntent)
+                }
+                Action.MAIL -> {
+                    actionIntent = Intent(Intent.ACTION_SEND, Uri.parse(url))
+                    actionIntent.putExtra(Intent.EXTRA_EMAIL, arrayOf(url))
+                    actionIntent.type = "text/plain"
+                    startActivity(actionIntent)
+                }
+            }
+        }
+        build.create().show()
+        return true
+    }
+
+    private fun enterCalendarMode() {
+        val selectedDate = todayAsString
+        val visibleMonth = selectedDate.substring(0, 7)
+        TodoApplication.todoList.clearSelection()
+        calendarState = CalendarModeState(
+            active = true,
+            selectedDate = selectedDate,
+            visibleMonth = visibleMonth,
+            listSnapshot = CalendarListSnapshot(
+                mainQueryJson = TodoApplication.config.mainQuery.saveInJSON(JSONObject()).toString(),
+                scrollPosition = TodoApplication.config.lastScrollPosition,
+                scrollOffset = TodoApplication.config.lastScrollOffset
+            )
+        )
+        restoreCalendarMode()
+        invalidateOptionsMenu()
+    }
+
+    private fun restoreCalendarMode() {
+        if (!calendarState.active) {
+            return
+        }
+        showCalendarMode()
+        val visibleMonth = calendarState.visibleMonth ?: todayAsString.substring(0, 7)
+        restoringCalendarPager = true
+        binding.calendarMode.calendarMonthPager.setCurrentItem(CalendarMonthPagerAdapter.positionForMonth(visibleMonth), false)
+        restoringCalendarPager = false
+        refreshCalendarMode()
+    }
+
+    private fun exitCalendarMode() {
+        val snapshot = calendarState.listSnapshot
+        calendarState = CalendarModeState()
+        showMainListMode()
+        snapshot?.let {
+            TodoApplication.config.mainQuery = it.restoreQuery()
+            TodoApplication.config.lastScrollPosition = it.scrollPosition
+            TodoApplication.config.lastScrollOffset = it.scrollOffset
+            taskAdapter.setFilteredTasks(this, TodoApplication.config.mainQuery)
+        }
+        invalidateOptionsMenu()
+    }
+
+    private fun showCalendarMode() {
+        binding.filteredView.visibility = View.GONE
+        binding.calendarMode.root.visibility = View.VISIBLE
+        binding.fab.visibility = View.GONE
+        binding.selectionFab.visibility = View.GONE
+    }
+
+    private fun showMainListMode() {
+        binding.filteredView.visibility = View.VISIBLE
+        binding.calendarMode.root.visibility = View.GONE
+        binding.fab.visibility = View.VISIBLE
+    }
+
+    private fun onCalendarMonthChanged(visibleMonth: String) {
+        if (!calendarState.active) {
+            return
+        }
+        val selectedDate = CalendarMonthPagerAdapter.clampDayToMonth(visibleMonth, calendarState.selectedDate)
+        calendarState = calendarState.copy(
+            visibleMonth = visibleMonth,
+            selectedDate = selectedDate
+        )
+        refreshCalendarMode()
+    }
+
+    private fun selectCalendarDate(date: String) {
+        calendarState = calendarState.copy(
+            selectedDate = date,
+            visibleMonth = date.substring(0, 7)
+        )
+        refreshCalendarMode()
+    }
+
+    private fun refreshCalendarMode() {
+        if (!calendarState.active) {
+            return
+        }
+        val selectedDate = calendarState.selectedDate ?: todayAsString
+        val visibleMonth = calendarState.visibleMonth ?: selectedDate.substring(0, 7)
+        val projection = projectCalendarData(selectedDate, visibleMonth)
+        binding.calendarMode.calendarMonthTitle.text = CalendarMonthPagerAdapter.titleForMonth(visibleMonth)
+        calendarMonthPagerAdapter.selectedDate = selectedDate
+        val sortedTasks = projection.selectedDay.tasks
+            .map { it.task }
+            .sortedWith(TodoApplication.todoList.getMultiComparator(calendarQuery, TodoApplication.config.sortCaseSensitive).comparator)
+        calendarTaskAdapter.setTasks(
+            caller = this,
+            recyclerView = binding.calendarMode.calendarDayList,
+            newQuery = calendarQuery,
+            visibleTasks = sortedTasks,
+            total = sortedTasks.size
+        )
+        binding.calendarMode.calendarEmptyState.visibility =
+            if (projection.selectedDay.isEmpty) View.VISIBLE else View.GONE
+    }
+
+    private fun projectCalendarData(selectedDate: String, visibleMonth: String) =
+        calendarTaskProjector.project(
+            tasks = TodoApplication.todoList.allTasks(),
+            selectedDate = selectedDate,
+            visibleMonth = visibleMonth,
+            visibility = TodoApplication.config.calendarScheduledDateVisibility
+        )
+
+    @Suppress("DEPRECATION")
+    private fun openCalendarMonthPicker() {
+        val visibleMonth = calendarState.visibleMonth ?: todayAsString.substring(0, 7)
+        val year = visibleMonth.substring(0, 4).toInt()
+        val month = visibleMonth.substring(5, 7).toInt()
+        val today = calendarState.selectedDate?.substring(8, 10)?.toIntOrNull() ?: 1
+        val dialog = DatePickerDialog(this, { _, selectedYear, selectedMonth, _ ->
+            val pickedMonth = String.format(Locale.US, "%04d-%02d", selectedYear, selectedMonth + 1)
+            onCalendarMonthChanged(pickedMonth)
+            restoringCalendarPager = true
+            binding.calendarMode.calendarMonthPager.setCurrentItem(CalendarMonthPagerAdapter.positionForMonth(pickedMonth), false)
+            restoringCalendarPager = false
+        }, year, month - 1, today)
+        dialog.datePicker.calendarViewShown = TodoApplication.config.showCalendar
+        dialog.datePicker.spinnersShown = !TodoApplication.config.showCalendar
+        dialog.setTitle(getString(R.string.calendar_pick_month))
+        dialog.show()
     }
 
     private fun selectedTasksAsString(): String {
@@ -500,6 +702,11 @@ class Simpletask : ThemedNoActionBarActivity() {
         listView.viewTreeObserver?.addOnScrollChangedListener(listener)
 
         binding.fab.setOnClickListener { startAddTaskActivity() }
+        if (calendarState.active) {
+            restoreCalendarMode()
+        } else {
+            showMainListMode()
+        }
     }
 
 
@@ -560,6 +767,17 @@ class Simpletask : ThemedNoActionBarActivity() {
                 Mode.QUICK_FILTER_DRAWER to {
                     inflater.inflate(R.menu.filter_drawer, menu)
                     setTitle(R.string.title_filter_drawer)
+                },
+                Mode.CALENDAR to {
+                    inflater.inflate(R.menu.main, menu)
+                    title = getString(R.string.calendar_mode_title)
+                    toggle.isDrawerIndicatorEnabled = true
+                    binding.fab.visibility = View.GONE
+                    binding.selectionFab.visibility = View.GONE
+                    binding.toolbar.visibility = View.GONE
+                    menu.findItem(R.id.search)?.isVisible = false
+                    menu.findItem(R.id.filter)?.isVisible = false
+                    true
                 },
                 Mode.SELECTION to {
                     val actionColor = ContextCompat.getDrawable(this, R.color.gray74)
@@ -639,6 +857,7 @@ class Simpletask : ThemedNoActionBarActivity() {
             when {
                 isDrawerOpen(SAVED_FILTER_DRAWER) -> actions[Mode.SAVED_FILTER_DRAWER]?.invoke()
                 isDrawerOpen(QUICK_FILTER_DRAWER) -> actions[Mode.QUICK_FILTER_DRAWER]?.invoke()
+                calendarState.active -> actions[Mode.CALENDAR]?.invoke()
                 TodoApplication.todoList.selectedTasks.isNotEmpty() -> actions[Mode.SELECTION]?.invoke()
                 else -> actions[Mode.MAIN]?.invoke()
             }
@@ -862,6 +1081,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                 handleMode(mapOf(
                         Mode.SAVED_FILTER_DRAWER to { closeDrawer(SAVED_FILTER_DRAWER) },
                         Mode.QUICK_FILTER_DRAWER to { closeDrawer(QUICK_FILTER_DRAWER) },
+                        Mode.CALENDAR to { m_drawerToggle?.onOptionsItemSelected(item) },
                         Mode.SELECTION to { closeSelectionMode() },
                         Mode.MAIN to { m_drawerToggle?.onOptionsItemSelected(item) }
                 ))
@@ -869,6 +1089,7 @@ class Simpletask : ThemedNoActionBarActivity() {
             }
             R.id.search -> {
             }
+            R.id.calendar_mode -> enterCalendarMode()
             R.id.preferences -> startPreferencesActivity()
             R.id.filter -> startFilterActivity()
             R.id.context_delete -> deleteTasks(checkedTasks)
@@ -1175,28 +1396,44 @@ class Simpletask : ThemedNoActionBarActivity() {
                         updateSavedFilterDrawer()
                     }
                     Event.TASK_LIST_CHANGED -> {
-                        updateTaskList(TodoApplication.config.mainQuery) {
-                            updateFilterBar()
-                            updateQuickFilterDrawer()
-                            updateCompletionCheckboxState()
+                        if (calendarState.active) {
+                            refreshCalendarMode()
+                        } else {
+                            updateTaskList(TodoApplication.config.mainQuery) {
+                                updateFilterBar()
+                                updateQuickFilterDrawer()
+                                updateCompletionCheckboxState()
+                            }
                         }
                     }
                     Event.FILTER_CHANGED -> {
-                        updateTaskList(TodoApplication.config.mainQuery) {
-                            updateFilterBar()
-                            updateQuickFilterDrawer()
+                        if (calendarState.active) {
+                            refreshCalendarMode()
+                        } else {
+                            updateTaskList(TodoApplication.config.mainQuery) {
+                                updateFilterBar()
+                                updateQuickFilterDrawer()
+                            }
                         }
                     }
                     Event.RESUME -> {
-                        updateFilterBar()
-                        updateSavedFilterDrawer()
-                        updateQuickFilterDrawer()
-                        updateConnectivityIndicator()
+                        if (calendarState.active) {
+                            refreshCalendarMode()
+                        } else {
+                            updateFilterBar()
+                            updateSavedFilterDrawer()
+                            updateQuickFilterDrawer()
+                            updateConnectivityIndicator()
+                        }
                     }
                     Event.FONT_SIZE_CHANGED -> {
-                        updateTaskList(TodoApplication.config.mainQuery) {
-                            updateFilterBar()
-                            updateQuickFilterDrawer()
+                        if (calendarState.active) {
+                            refreshCalendarMode()
+                        } else {
+                            updateTaskList(TodoApplication.config.mainQuery) {
+                                updateFilterBar()
+                                updateQuickFilterDrawer()
+                            }
                         }
                     }
                     Event.UPDATE_PENDING_CHANGES -> {
@@ -1211,6 +1448,7 @@ class Simpletask : ThemedNoActionBarActivity() {
 
         private fun updateFilterBar() {
             binding.actionbar.visibility = when {
+                calendarState.active -> View.GONE
                 TodoApplication.config.mainQuery.hasFilter() -> View.VISIBLE
                 else -> View.GONE
             }
@@ -1388,7 +1626,7 @@ enum class Event {
 }
 
 enum class Mode {
-    SAVED_FILTER_DRAWER, QUICK_FILTER_DRAWER, SELECTION, MAIN
+    SAVED_FILTER_DRAWER, QUICK_FILTER_DRAWER, CALENDAR, SELECTION, MAIN
 }
 
 enum class Action {

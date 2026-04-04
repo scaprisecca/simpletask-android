@@ -208,6 +208,30 @@ class TaskAdapter(val completeAction: (Task) -> Unit,
         }
         Log.i(tag, "setFilteredTasks called: ${TodoApplication.todoList}")
         val (visibleTasks, total) = TodoApplication.todoList.getSortedTasks(newQuery, TodoApplication.config.sortCaseSensitive)
+        setTasks(
+            caller = caller,
+            recyclerView = caller.listView,
+            newQuery = newQuery,
+            visibleTasks = visibleTasks,
+            total = total,
+            restoreScrollPosition = TodoApplication.config.lastScrollPosition,
+            restoreScrollOffset = TodoApplication.config.lastScrollOffset,
+            showProgress = true
+        )
+    }
+
+    internal fun setTasks(
+        caller: Simpletask,
+        recyclerView: RecyclerView,
+        newQuery: Query,
+        visibleTasks: List<Task>,
+        total: Int,
+        restoreScrollPosition: Int? = null,
+        restoreScrollOffset: Int = 0,
+        showProgress: Boolean = false
+    ) {
+        textSize = TodoApplication.config.tasklistTextSize
+        query = newQuery
         countTotalTasks = total
         countVisibleTasks = visibleTasks.size
 
@@ -218,11 +242,13 @@ class TaskAdapter(val completeAction: (Task) -> Unit,
         caller.runOnUiThread {
             // Replace the array in the main thread to prevent OutOfIndex exceptions
             visibleLines = newVisibleLines
-            caller.showListViewProgress(false)
-            if (TodoApplication.config.lastScrollPosition != -1) {
-                val manager = caller.listView.layoutManager as LinearLayoutManager?
-                val position = TodoApplication.config.lastScrollPosition
-                val offset = TodoApplication.config.lastScrollOffset
+            if (showProgress) {
+                caller.showListViewProgress(false)
+            }
+            if (restoreScrollPosition != null && restoreScrollPosition != -1) {
+                val manager = recyclerView.layoutManager as LinearLayoutManager?
+                val position = restoreScrollPosition
+                val offset = restoreScrollOffset
                 Log.i(tag, "Restoring scroll offset $position, $offset")
                 manager?.scrollToPositionWithOffset(position, offset)
             }
@@ -379,4 +405,3 @@ class TaskAdapter(val completeAction: (Task) -> Unit,
                 forceKeepSelection = true);
     }
 }
-

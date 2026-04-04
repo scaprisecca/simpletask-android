@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import me.smichel.android.KPreferences.Preferences
 import nl.mpcjanssen.simpletask.*
+import nl.mpcjanssen.simpletask.calendar.ScheduledDateVisibility
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Task
 import org.json.JSONObject
@@ -152,6 +153,13 @@ class Config(app: TodoApplication) : Preferences(app) {
         get() = dateBarSize / 100.0f
 
     val showCalendar by BooleanPreference(R.string.ui_show_calendarview, false)
+
+    private val calendarScheduledDatesPreference by StringPreference(R.string.ui_calendar_scheduled_dates, ScheduledDateVisibility.BOTH.storageValue)
+    var calendarScheduledDateVisibility: ScheduledDateVisibility
+        get() = ScheduledDateVisibility.fromStoredValue(calendarScheduledDatesPreference)
+        set(value) {
+            calendarScheduledDatesPreference = value.storageValue
+        }
 
     val tasklistTextSize: Float
         get() {
