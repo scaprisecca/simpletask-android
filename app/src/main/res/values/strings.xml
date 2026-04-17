@@ -238,6 +238,7 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="calendar_mode_empty_day">No scheduled tasks for this day.</string>
     <string name="calendar_previous_month">Previous month</string>
     <string name="calendar_next_month">Next month</string>
+    <string name="calendar_close">Close calendar</string>
     <string name="calendar_pick_month">Choose month</string>
     <string name="calendar_day_content_none">%1$s. No scheduled tasks.</string>
     <string name="calendar_day_content_due">%1$s. Has due tasks.</string>
