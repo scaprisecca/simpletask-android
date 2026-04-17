@@ -1,0 +1,14 @@
+#! /nix/store/v8sa6r6q037ihghxfbwzjj4p59v2x0pv-bash-5.3p9/bin/bash -e
+PATH=${PATH:+':'$PATH':'}
+PATH=${PATH/':''/nix/store/nk7ra0997wd9pa517baq399kf9j5vgx3-openjdk-17.0.18+8/bin'':'/':'}
+PATH='/nix/store/nk7ra0997wd9pa517baq399kf9j5vgx3-openjdk-17.0.18+8/bin'$PATH
+PATH=${PATH#':'}
+PATH=${PATH%':'}
+export PATH
+ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:+':'$ANDROID_SDK_ROOT':'}
+ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT/':''/nix/store/b8pr9lb7kiz677ii9r8n8d1kff2f56rd-androidsdk/libexec/android-sdk'':'/':'}
+ANDROID_SDK_ROOT='/nix/store/b8pr9lb7kiz677ii9r8n8d1kff2f56rd-androidsdk/libexec/android-sdk'$ANDROID_SDK_ROOT
+ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT#':'}
+ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT%':'}
+export ANDROID_SDK_ROOT
+exec -a "$0" "/nix/store/b8pr9lb7kiz677ii9r8n8d1kff2f56rd-androidsdk/libexec/android-sdk/cmdline-tools/19.0/bin/.r8-wrapped"  "$@" 
