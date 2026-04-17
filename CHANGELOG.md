@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Favorite todo file switcher for quick navigation between frequently-used files
+  - Add current file to favorites list from overflow menu
+  - Open dedicated switcher dialog with alphabetically-sorted favorites
+  - Favorites marked with visual indicator for currently active file
+  - Remove unwanted favorites directly from switcher
+  - Support for same-named files in different directories
+- Close button in calendar view for returning to task list
+
+### Fixed
+- Build compilation errors preventing APK assembly
+  - Removed unused anko-commons dependency
+  - Corrected preference property modifier from val to var
+  - Fixed visibility modifier conflict in Preferences base class
+  - Added kapt configuration for proper annotation processing
+  - Locale-aware string case conversion for compatibility
+
+### Changed
+- Favorite file switching now prompts to save or discard pending changes before switching files
+- Unavailable favorites stay visible in switcher until explicitly removed by user
+
+---

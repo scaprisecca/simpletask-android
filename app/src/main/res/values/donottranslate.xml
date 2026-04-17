@@ -189,6 +189,7 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="use_list_and_tags_icons"        translatable="false">use_list_and_tags_icons</string>
     <string name="uppercase_headers"              translatable="false">uppercase_headers</string>
     <string name="query_store"                    translatable="false">query_store</string>
+    <string name="favorite_todo_files"            translatable="false">favorite_todo_files</string>
     <string name="force_english"                  translatable="false">force_english</string>
     <string name="idle_before_save"               translatable="false">idle_before_save</string>
 </resources>

@@ -295,6 +295,30 @@ class TodoList(val config: Config) {
 
 
     private fun save(fileStore: IFileStore, todoFile: File, eol: String) {
+        save(fileStore, todoFile, eol, delayMs = TodoApplication.config.idleBeforeSaveSeconds * 1000L, onComplete = null)
+    }
+
+    fun saveNow(todoFile: File = config.todoFile, onComplete: (Boolean) -> Unit) {
+        save(FileStore, todoFile, eol = config.eol, delayMs = 0L, onComplete = onComplete)
+    }
+
+    fun discardPendingChanges() {
+        timer?.cancel()
+        timer = null
+        pendingEdits.clear()
+        if (config.changesPending) {
+            config.changesPending = false
+            broadcastUpdateStateIndicator(TodoApplication.app.localBroadCastManager)
+        }
+    }
+
+    private fun save(
+        fileStore: IFileStore,
+        todoFile: File,
+        eol: String,
+        delayMs: Long,
+        onComplete: ((Boolean) -> Unit)?
+    ) {
         Log.d(tag, "Save: ${todoFile.path}")
         config.changesPending = true
         broadcastUpdateStateIndicator(TodoApplication.app.localBroadCastManager)
@@ -313,6 +337,7 @@ class TodoList(val config: Config) {
             val saveAction = {
                 FileStoreActionQueue.add("Save") {
                     broadcastFileSyncStart(TodoApplication.app.localBroadCastManager)
+                    var saveSucceeded = false
                     try {
                         Log.i(tag, "Saving todo list, size ${lines.size}")
                         val newFile = fileStore.saveTasksToFile(todoFile, lines, eol = eol).canonicalPath
@@ -329,6 +354,7 @@ class TodoList(val config: Config) {
                             showToastLong(TodoApplication.app, "Filename was changed remotely. New name is: $newFile")
                             TodoApplication.app.switchTodoFile(File(newFile))
                         }
+                        saveSucceeded = true
 
                     } catch (e: Exception) {
                         Log.e(tag, "TodoList save to ${todoFile.path} failed", e)
@@ -336,21 +362,26 @@ class TodoList(val config: Config) {
                         if (fileStore.isOnline) {
                             showToastShort(TodoApplication.app, "Saving of todo file failed")
                         }
+                    } finally {
+                        onComplete?.invoke(saveSucceeded)
                     }
                     broadcastFileSyncDone(TodoApplication.app.localBroadCastManager)
                 }
             }
-            val idleSeconds = TodoApplication.config.idleBeforeSaveSeconds
-
-            timer = object : CountDownTimer(idleSeconds * 1000L, 1000) {
-                override fun onFinish() {
-                    Log.d(tag, "Executing pending Save")
-                    saveAction()
-                }
-                override fun onTick(p0: Long) {
-                    Log.d(tag, "Scheduled save in $p0")
-                }
-            }.start()
+            if (delayMs <= 0L) {
+                timer = null
+                saveAction()
+            } else {
+                timer = object : CountDownTimer(delayMs, 1000) {
+                    override fun onFinish() {
+                        Log.d(tag, "Executing pending Save")
+                        saveAction()
+                    }
+                    override fun onTick(p0: Long) {
+                        Log.d(tag, "Scheduled save in $p0")
+                    }
+                }.start()
+            }
 
         }
     }

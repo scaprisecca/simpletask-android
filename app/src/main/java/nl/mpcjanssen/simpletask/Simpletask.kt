@@ -50,6 +50,13 @@ import nl.mpcjanssen.simpletask.calendar.CalendarListSnapshot
 import nl.mpcjanssen.simpletask.calendar.CalendarModeState
 import nl.mpcjanssen.simpletask.calendar.CalendarMonthPagerAdapter
 import nl.mpcjanssen.simpletask.calendar.CalendarTaskProjector
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileListAdapter
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchAction
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchCoordinator
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchPromptChoice
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitcherModel
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFile
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFiles
 import nl.mpcjanssen.simpletask.databinding.MainBinding
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.*
@@ -147,6 +154,9 @@ class Simpletask : ThemedNoActionBarActivity() {
         }
         binding.calendarMode.calendarMonthTitle.setOnClickListener {
             openCalendarMonthPicker()
+        }
+        binding.calendarMode.calendarClose.setOnClickListener {
+            showMainListMode()
         }
         binding.calendarMode.calendarMonthPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
@@ -1111,6 +1121,8 @@ class Simpletask : ThemedNoActionBarActivity() {
             R.id.archive -> archiveTasks(true)
             R.id.show_filter_drawer -> openSavedFilterDrawer()
             R.id.open_file -> TodoApplication.app.browseForNewFile(this)
+            R.id.open_favorite_file_switcher -> showFavoriteFileSwitcher()
+            R.id.add_current_file_to_favorites -> addCurrentFileToFavorites()
             R.id.history -> startActivity(Intent(this, HistoryScreen::class.java))
             R.id.btn_filter_add -> onAddFilterClick()
             R.id.clear_filter -> clearFilter()
@@ -1154,6 +1166,143 @@ class Simpletask : ThemedNoActionBarActivity() {
             else -> return super.onOptionsItemSelected(item)
         }
         return true
+    }
+
+    private fun addCurrentFileToFavorites() {
+        val currentFile = TodoApplication.config.todoFile
+        val updatedFavorites = FavoriteTodoFiles.add(TodoApplication.config.favoriteTodoFiles, currentFile)
+        val existingFavorites = TodoApplication.config.favoriteTodoFiles
+        if (updatedFavorites == existingFavorites) {
+            showToastShort(this, R.string.favorite_file_exists)
+            return
+        }
+        TodoApplication.config.favoriteTodoFiles = updatedFavorites
+        showToastShort(this, R.string.favorite_file_added)
+    }
+
+    private fun showFavoriteFileSwitcher() {
+        val view = layoutInflater.inflate(R.layout.favorite_file_switcher_dialog, null, false)
+        val listView = view.findViewById<ListView>(R.id.favorite_file_switcher_list)
+        val emptyView = view.findViewById<TextView>(R.id.favorite_file_switcher_empty)
+        lateinit var adapter: FavoriteFileListAdapter
+        adapter = FavoriteFileListAdapter(
+            this,
+            onSelect = { favorite ->
+                favoriteFileSwitcherDialog?.dismiss()
+                startFavoriteFileSwitch(favorite)
+            },
+            onRemove = { favorite ->
+                removeFavoriteFile(favorite)
+                refreshFavoriteFileSwitcher(adapter, listView, emptyView)
+            }
+        )
+        listView.adapter = adapter
+
+        val createdDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.favorite_file_switcher_title)
+            .setView(view)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        favoriteFileSwitcherDialog = createdDialog
+        refreshFavoriteFileSwitcher(adapter, listView, emptyView)
+        createdDialog.show()
+    }
+
+    private var favoriteFileSwitcherDialog: AlertDialog? = null
+
+    private fun refreshFavoriteFileSwitcher(
+        adapter: FavoriteFileListAdapter,
+        listView: ListView,
+        emptyView: TextView
+    ) {
+        val rows = FavoriteFileSwitcherModel.buildRows(
+            TodoApplication.config.favoriteTodoFiles,
+            TodoApplication.config.todoFile
+        )
+        adapter.submitRows(rows)
+        val empty = rows.isEmpty()
+        emptyView.visibility = if (empty) View.VISIBLE else View.GONE
+        listView.visibility = if (empty) View.GONE else View.VISIBLE
+    }
+
+    private fun removeFavoriteFile(favorite: FavoriteTodoFile) {
+        TodoApplication.config.favoriteTodoFiles = FavoriteTodoFiles.remove(
+            TodoApplication.config.favoriteTodoFiles,
+            File(favorite.path)
+        )
+    }
+
+    private fun startFavoriteFileSwitch(favorite: FavoriteTodoFile) {
+        pendingFavoriteTarget = File(favorite.path)
+        val action = FavoriteFileSwitchCoordinator.start(
+            activeFile = TodoApplication.config.todoFile,
+            targetFile = pendingFavoriteTarget ?: File(favorite.path),
+            hasPendingChanges = TodoApplication.config.changesPending
+        )
+        handleFavoriteFileSwitchAction(action)
+    }
+
+    private fun handleFavoriteFileSwitchAction(action: FavoriteFileSwitchAction) {
+        when (action) {
+            FavoriteFileSwitchAction.NoOp -> Unit
+            FavoriteFileSwitchAction.PromptForPendingChanges -> showFavoriteFilePendingChangesDialog()
+            FavoriteFileSwitchAction.StayOnCurrentFile -> Unit
+            is FavoriteFileSwitchAction.SwitchTo -> switchToFavoriteFile(action.target)
+            is FavoriteFileSwitchAction.SaveThenSwitch -> {
+                TodoApplication.todoList.saveNow(TodoApplication.config.todoFile) { saveSucceeded ->
+                    runOnUiThread {
+                        val nextAction = FavoriteFileSwitchCoordinator.afterSave(
+                            activeFileAfterSave = TodoApplication.config.todoFile,
+                            targetFile = action.target,
+                            saveSucceeded = saveSucceeded
+                        )
+                        handleFavoriteFileSwitchAction(nextAction)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showFavoriteFilePendingChangesDialog() {
+        val target = pendingFavoriteTarget ?: return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.favorite_file_pending_changes_title)
+            .setMessage(R.string.favorite_file_pending_changes_message)
+            .setPositiveButton(R.string.save_task) { _, _ ->
+                handleFavoriteFileSwitchAction(
+                    FavoriteFileSwitchCoordinator.afterPrompt(target, FavoriteFileSwitchPromptChoice.SAVE)
+                )
+            }
+            .setNeutralButton(R.string.discard) { _, _ ->
+                TodoApplication.todoList.discardPendingChanges()
+                handleFavoriteFileSwitchAction(
+                    FavoriteFileSwitchCoordinator.afterPrompt(target, FavoriteFileSwitchPromptChoice.DISCARD)
+                )
+            }
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                handleFavoriteFileSwitchAction(
+                    FavoriteFileSwitchCoordinator.afterPrompt(target, FavoriteFileSwitchPromptChoice.CANCEL)
+                )
+            }
+            .show()
+    }
+
+    private var pendingFavoriteTarget: File? = null
+
+    private fun switchToFavoriteFile(target: File) {
+        pendingFavoriteTarget = target
+        if (!canOpenFavoriteFile(target)) {
+            showToastLong(this, getString(R.string.favorite_file_unavailable, target.name))
+            return
+        }
+        TodoApplication.app.switchTodoFile(target)
+    }
+
+    private fun canOpenFavoriteFile(target: File): Boolean {
+        if (!FileStore.isOnline) {
+            return false
+        }
+        return target.exists()
     }
 
     private fun createCalendarAppointment(checkedTasks: List<Task>) {

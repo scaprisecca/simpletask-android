@@ -45,6 +45,17 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="next">Next</string>
     <string name="prev">Previous</string>
     <string name="open_file">Open task list file</string>
+    <string name="favorite_file_switcher_title">Switch favorite file</string>
+    <string name="add_current_file_to_favorites">Add current file to favorites</string>
+    <string name="favorite_file_added">Favorite added</string>
+    <string name="favorite_file_exists">File is already a favorite</string>
+    <string name="favorite_file_remove">Remove favorite</string>
+    <string name="favorite_file_current">Current</string>
+    <string name="favorite_file_switcher_empty">No favorite files yet.</string>
+    <string name="favorite_file_unavailable">Can\'t open favorite file: %1$s</string>
+    <string name="favorite_file_pending_changes_title">Unsaved changes</string>
+    <string name="favorite_file_pending_changes_message">Save changes before switching files?</string>
+    <string name="discard">Discard</string>
     <string name="sync">Sync</string>
     <string name="changelist">Select list</string>
     <string name="search">Search</string>

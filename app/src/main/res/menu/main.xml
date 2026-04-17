@@ -61,6 +61,16 @@ You should have received a copy of the GNU General Public License along with Tod
         app:showAsAction="never"
         />
     <item
+        android:id="@+id/open_favorite_file_switcher"
+        android:title="@string/favorite_file_switcher_title"
+        app:showAsAction="never"
+        />
+    <item
+        android:id="@+id/add_current_file_to_favorites"
+        android:title="@string/add_current_file_to_favorites"
+        app:showAsAction="never"
+        />
+    <item
         android:id="@+id/sync"
         android:title="@string/sync"
         app:showAsAction="never"

@@ -7,6 +7,8 @@ import androidx.annotation.RequiresApi
 import me.smichel.android.KPreferences.Preferences
 import nl.mpcjanssen.simpletask.*
 import nl.mpcjanssen.simpletask.calendar.ScheduledDateVisibility
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFile
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFiles
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Task
 import org.json.JSONObject
@@ -154,7 +156,7 @@ class Config(app: TodoApplication) : Preferences(app) {
 
     val showCalendar by BooleanPreference(R.string.ui_show_calendarview, false)
 
-    private val calendarScheduledDatesPreference by StringPreference(R.string.ui_calendar_scheduled_dates, ScheduledDateVisibility.BOTH.storageValue)
+    private var calendarScheduledDatesPreference by StringPreference(R.string.ui_calendar_scheduled_dates, ScheduledDateVisibility.BOTH.storageValue)
     var calendarScheduledDateVisibility: ScheduledDateVisibility
         get() = ScheduledDateVisibility.fromStoredValue(calendarScheduledDatesPreference)
         set(value) {
@@ -265,6 +267,13 @@ class Config(app: TodoApplication) : Preferences(app) {
     }
 
     var savedQueriesJSONString by StringPreference(R.string.query_store, legacyQueryStoreJson())
+
+    private var favoriteTodoFilesPreference by StringPreference(R.string.favorite_todo_files, "[]")
+    var favoriteTodoFiles: List<FavoriteTodoFile>
+        get() = FavoriteTodoFiles.fromStoredValue(favoriteTodoFilesPreference)
+        set(value) {
+            favoriteTodoFilesPreference = FavoriteTodoFiles.toStoredValue(value)
+        }
 
     var savedQueries : List<NamedQuery>
     get() {

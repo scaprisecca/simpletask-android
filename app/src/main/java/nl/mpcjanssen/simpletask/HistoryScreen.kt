@@ -18,12 +18,11 @@ import nl.mpcjanssen.simpletask.dao.TodoFile
 import nl.mpcjanssen.simpletask.util.createCachedDatabase
 import nl.mpcjanssen.simpletask.util.shareText
 import nl.mpcjanssen.simpletask.util.showToastShort
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 import java.io.File
 import java.lang.Integer.max
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.concurrent.thread
 
 class HistoryScreen : ThemedActionBarActivity() {
 
@@ -46,9 +45,9 @@ class HistoryScreen : ThemedActionBarActivity() {
             setTitle(title)
         }
         setContentView(R.layout.history)
-        doAsync {
+        thread(start = true) {
             history = db.todoFileDao().getAll()
-            uiThread {
+            runOnUiThread {
                 initToolbar()
                 displayCurrent()
             }
@@ -119,10 +118,10 @@ class HistoryScreen : ThemedActionBarActivity() {
 
     private fun clearDatabase() {
         Log.i(TAG, "Clearing history database")
-        doAsync {
+        thread(start = true) {
             db.todoFileDao().deleteAll()
             history = db.todoFileDao().getAll()
-            uiThread {
+            runOnUiThread {
                 updateMenu()
                 displayCurrent()
             }
