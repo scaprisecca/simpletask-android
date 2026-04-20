@@ -25,4 +25,22 @@ class AddTaskSelectionTest : TestCase() {
     fun testNormalizeLineIndexClampsPastEnd() {
         assertEquals(1, AddTaskSelection.normalizeLineIndex(4, 2))
     }
+
+    fun testTrackerKeepsLastValidSelectionAcrossFocusLoss() {
+        val tracker = SelectionSnapshotTracker()
+
+        tracker.remember(SelectionSnapshot(start = 18, end = 18))
+        tracker.remember(SelectionSnapshot(start = 0, end = 0), fromFocusedEditor = false)
+
+        assertEquals(SelectionSnapshot(start = 18, end = 18), tracker.current())
+    }
+
+    fun testTrackerUpdatesWhenUserMovesCursor() {
+        val tracker = SelectionSnapshotTracker()
+
+        tracker.remember(SelectionSnapshot(start = 4, end = 4))
+        tracker.remember(SelectionSnapshot(start = 22, end = 22))
+
+        assertEquals(SelectionSnapshot(start = 22, end = 22), tracker.current())
+    }
 }

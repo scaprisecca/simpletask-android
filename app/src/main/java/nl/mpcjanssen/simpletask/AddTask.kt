@@ -15,7 +15,6 @@ import android.text.Selection
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.Window
 import android.view.WindowManager
 import hirondelle.date4j.DateTime
@@ -27,7 +26,7 @@ import java.util.*
 
 class AddTask : ThemedActionBarActivity() {
     private var startText: String = ""
-    private var selectionSnapshot = SelectionSnapshot.Invalid
+    private val selectionSnapshotTracker = SelectionSnapshotTracker()
 
     private val shareText: String? = null
 
@@ -108,7 +107,12 @@ class AddTask : ThemedActionBarActivity() {
             }
 
             setInputType()
-            registerSelectionSnapshotHooks()
+            binding.taskText.onSelectionChangedListener = { start, end ->
+                selectionSnapshotTracker.remember(
+                        AddTaskSelection.snapshot(start, end, binding.taskText.text.length),
+                        fromFocusedEditor = true
+                )
+            }
 
             // Set button callbacks
             binding.btnContext.setOnClickListener { showListMenu() }
@@ -466,11 +470,14 @@ class AddTask : ThemedActionBarActivity() {
     }
 
     private fun selectionSnapshotForMutation(): SelectionSnapshot {
-        return if (selectionSnapshot.isValid) {
-            selectionSnapshot
-        } else {
-            captureSelectionSnapshot()
+        val trackedSelection = selectionSnapshotTracker.current()
+        if (trackedSelection.isValid) {
+            return trackedSelection
         }
+
+        val liveSelection = captureSelectionSnapshot()
+        selectionSnapshotTracker.remember(liveSelection, fromFocusedEditor = binding.taskText.hasFocus())
+        return selectionSnapshotTracker.current()
     }
 
     private fun captureSelectionSnapshot(): SelectionSnapshot {
@@ -482,22 +489,7 @@ class AddTask : ThemedActionBarActivity() {
     }
 
     private fun rememberCurrentSelection() {
-        val currentSelection = captureSelectionSnapshot()
-        if (currentSelection.isValid) {
-            selectionSnapshot = currentSelection
-        }
-    }
-
-    private fun registerSelectionSnapshotHooks() {
-        listOf(binding.btnContext, binding.btnProject, binding.btnPrio, binding.btnDue, binding.btnThreshold)
-                .forEach { button ->
-                    button.setOnTouchListener { _, event ->
-                        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                            rememberCurrentSelection()
-                        }
-                        false
-                    }
-                }
+        selectionSnapshotTracker.remember(captureSelectionSnapshot(), fromFocusedEditor = binding.taskText.hasFocus())
     }
 
     private fun replaceTextAtSelection(newText: CharSequence, spaces: Boolean) {

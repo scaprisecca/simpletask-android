@@ -9,6 +9,18 @@ internal data class SelectionSnapshot(val start: Int, val end: Int) {
     }
 }
 
+internal class SelectionSnapshotTracker(initialSelection: SelectionSnapshot = SelectionSnapshot.Invalid) {
+    private var lastValidSelection = initialSelection
+
+    fun remember(selection: SelectionSnapshot, fromFocusedEditor: Boolean = true) {
+        if (fromFocusedEditor && selection.isValid) {
+            lastValidSelection = selection
+        }
+    }
+
+    fun current(): SelectionSnapshot = lastValidSelection
+}
+
 internal object AddTaskSelection {
     fun snapshot(start: Int, end: Int, textLength: Int): SelectionSnapshot {
         if (start < 0 || end < 0) {
