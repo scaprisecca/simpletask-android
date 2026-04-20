@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Close button in calendar view for returning to task list
 
 ### Fixed
+- Add Task now preserves the caret position when inserting contexts, projects, and priorities, including in multi-line entries
 - Build compilation errors preventing APK assembly
   - Removed unused anko-commons dependency
   - Corrected preference property modifier from val to var
