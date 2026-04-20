@@ -358,7 +358,7 @@ class AddTask : ThemedActionBarActivity() {
             } else {
                 tasks.add(task)
             }
-            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false)
+            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false, restoreToLineEnd = true)
         }
     }
 
@@ -412,7 +412,7 @@ class AddTask : ThemedActionBarActivity() {
             } else {
                 tasks.add(task)
             }
-            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false)
+            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false, restoreToLineEnd = true)
         }
     }
 
@@ -421,35 +421,39 @@ class AddTask : ThemedActionBarActivity() {
     }
 
     private fun replaceDueDate(newDueDate: CharSequence) {
-        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false) { task ->
+        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false, restoreToLineEnd = true) { task ->
             task.dueDate = newDueDate.toString()
         }
     }
 
     private fun replaceThresholdDate(newThresholdDate: CharSequence) {
-        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false) { task ->
+        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false, restoreToLineEnd = true) { task ->
             task.thresholdDate = newThresholdDate.toString()
         }
     }
 
-    private fun replaceTextAndRestoreSelection(updatedText: String, snapshot: SelectionSnapshot, moveCursor: Boolean) {
+    private fun replaceTextAndRestoreSelection(updatedText: String, snapshot: SelectionSnapshot, moveCursor: Boolean, restoreToLineEnd: Boolean = false) {
         val oldLength = binding.taskText.text.length
         binding.taskText.setText(updatedText)
-        restoreSelection(snapshot, oldLength, moveCursor)
+        restoreSelection(snapshot, oldLength, moveCursor, restoreToLineEnd)
     }
 
-    private fun restoreSelection(snapshot: SelectionSnapshot, oldLength: Int, moveCursor: Boolean) {
-        val newLocation = AddTaskSelection.restoredCursor(
-                selection = snapshot,
-                oldLength = oldLength,
-                newLength = binding.taskText.text.length,
-                moveCursor = moveCursor
-        )
+    private fun restoreSelection(snapshot: SelectionSnapshot, oldLength: Int, moveCursor: Boolean, restoreToLineEnd: Boolean = false) {
+        val newLocation = if (restoreToLineEnd) {
+            AddTaskSelection.restoredCursorToLineEnd(binding.taskText.text, snapshot)
+        } else {
+            AddTaskSelection.restoredCursor(
+                    selection = snapshot,
+                    oldLength = oldLength,
+                    newLength = binding.taskText.text.length,
+                    moveCursor = moveCursor
+            )
+        }
         binding.taskText.setSelection(newLocation, newLocation)
         rememberCurrentSelection()
     }
 
-    private fun mutateCurrentTask(snapshot: SelectionSnapshot, moveCursor: Boolean, mutation: (Task) -> Unit) {
+    private fun mutateCurrentTask(snapshot: SelectionSnapshot, moveCursor: Boolean, restoreToLineEnd: Boolean = false, mutation: (Task) -> Unit) {
         val lines = ArrayList<String>()
         Collections.addAll(lines, *binding.taskText.text.toString().split("\\n".toRegex()).toTypedArray())
 
@@ -458,7 +462,7 @@ class AddTask : ThemedActionBarActivity() {
             val task = Task(lines[currentLine])
             mutation(task)
             lines[currentLine] = task.inFileFormat(TodoApplication.config.useUUIDs)
-            replaceTextAndRestoreSelection(join(lines, "\n"), snapshot, moveCursor)
+            replaceTextAndRestoreSelection(join(lines, "\n"), snapshot, moveCursor, restoreToLineEnd)
         }
     }
 

@@ -22,6 +22,20 @@ class AddTaskSelectionTest : TestCase() {
         assertEquals(12, AddTaskSelection.restoredCursor(selection, oldLength = 10, newLength = 14, moveCursor = true))
     }
 
+    fun testRestoreCursorMovesToEndOfCurrentLineAfterTagInsertion() {
+        val updatedText = "first +tag\nsecond line"
+        val selection = SelectionSnapshot(start = 2, end = 2)
+
+        assertEquals(10, AddTaskSelection.restoredCursorToLineEnd(updatedText, selection))
+    }
+
+    fun testRestoreCursorMovesToEndOfLaterLineAfterDateInsertion() {
+        val updatedText = "first line\nsecond due:2026-04-21"
+        val selection = SelectionSnapshot(start = 15, end = 15)
+
+        assertEquals(updatedText.length, AddTaskSelection.restoredCursorToLineEnd(updatedText, selection))
+    }
+
     fun testNormalizeLineIndexClampsPastEnd() {
         assertEquals(1, AddTaskSelection.normalizeLineIndex(4, 2))
     }

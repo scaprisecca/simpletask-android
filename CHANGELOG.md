@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Close button in calendar view for returning to task list
 
 ### Fixed
+- Add Task now moves the cursor to the end of the current task after inserting contexts, projects, due dates, and threshold dates, even when the task wraps across multiple on-screen lines
 - Add Task now keeps the cursor on the active line when inserting contexts, projects, and priorities after the editor loses focus to the toolbar
 - Add Task now preserves the caret position when inserting contexts, projects, and priorities, including in multi-line entries
 - Build compilation errors preventing APK assembly

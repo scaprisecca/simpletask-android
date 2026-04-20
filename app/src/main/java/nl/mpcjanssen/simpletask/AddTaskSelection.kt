@@ -56,4 +56,23 @@ internal object AddTaskSelection {
 
         return newLocation.coerceIn(0, newLength)
     }
+
+    fun restoredCursorToLineEnd(updatedText: CharSequence, selection: SelectionSnapshot): Int {
+        val currentLine = normalizeLineIndex(currentLine(updatedText, selection), updatedText.split('\n').size)
+        if (currentLine == -1) {
+            return 0
+        }
+
+        var lineIndex = 0
+        for (index in updatedText.indices) {
+            if (updatedText[index] == '\n') {
+                if (lineIndex == currentLine) {
+                    return index
+                }
+                lineIndex++
+            }
+        }
+
+        return updatedText.length
+    }
 }
