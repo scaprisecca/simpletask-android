@@ -15,19 +15,19 @@ import android.text.Selection
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.Window
 import android.view.WindowManager
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.databinding.AddTaskBinding
-import nl.mpcjanssen.simpletask.databinding.LoginBinding
 import nl.mpcjanssen.simpletask.task.Priority
 import nl.mpcjanssen.simpletask.task.Task
-import nl.mpcjanssen.simpletask.task.TodoList
 import nl.mpcjanssen.simpletask.util.*
 import java.util.*
 
 class AddTask : ThemedActionBarActivity() {
     private var startText: String = ""
+    private var selectionSnapshot = SelectionSnapshot.Invalid
 
     private val shareText: String? = null
 
@@ -108,9 +108,7 @@ class AddTask : ThemedActionBarActivity() {
             }
 
             setInputType()
-
-
-
+            registerSelectionSnapshotHooks()
 
             // Set button callbacks
             binding.btnContext.setOnClickListener { showListMenu() }
@@ -122,6 +120,7 @@ class AddTask : ThemedActionBarActivity() {
             binding.btnSave.setOnClickListener { saveTasksAndClose() }
             binding.taskText.requestFocus()
             Selection.setSelection(binding.taskText.text,0)
+            rememberCurrentSelection()
 
     }
 
@@ -328,6 +327,7 @@ class AddTask : ThemedActionBarActivity() {
 
     private fun showTagMenu() {
         val items = TreeSet<String>()
+        val snapshot = selectionSnapshotForMutation()
 
         items.addAll(TodoApplication.todoList.projects)
         // Also display projects in tasks being added
@@ -338,7 +338,7 @@ class AddTask : ThemedActionBarActivity() {
         tasks.forEach {task ->
             task.tags?.let {items.addAll(it)}
         }
-        val idx = getCurrentCursorLine()
+        val idx = getCurrentCursorLine(snapshot)
         val task = getTasks().getOrElse(idx) { Task("") }
 
         updateItemsDialog(
@@ -354,17 +354,18 @@ class AddTask : ThemedActionBarActivity() {
             } else {
                 tasks.add(task)
             }
-            binding.taskText.setText(tasks.joinToString("\n") { it.text })
+            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false)
         }
     }
 
     private fun showPriorityMenu() {
         val builder = AlertDialog.Builder(this)
+        val snapshot = selectionSnapshotForMutation()
         val priorities = Priority.values()
         val priorityCodes = priorities.mapTo(ArrayList()) { it.code }
 
         builder.setItems(priorityCodes.toArray<String>(arrayOfNulls<String>(priorityCodes.size))
-        ) { _, which -> replacePriority(priorities[which].code) }
+        ) { _, which -> replacePriority(priorities[which].code, snapshot) }
 
         // Create the AlertDialog
         val dialog = builder.create()
@@ -379,6 +380,7 @@ class AddTask : ThemedActionBarActivity() {
 
     private fun showListMenu() {
         val items = TreeSet<String>()
+        val snapshot = selectionSnapshotForMutation()
 
         items.addAll(TodoApplication.todoList.contexts)
         // Also display contexts in tasks being added
@@ -390,7 +392,7 @@ class AddTask : ThemedActionBarActivity() {
             task.lists?.let {items.addAll(it)}
         }
 
-        val idx = getCurrentCursorLine()
+        val idx = getCurrentCursorLine(snapshot)
         val task = getTasks().getOrElse(idx) { Task("") }
 
         updateItemsDialog(
@@ -406,103 +408,96 @@ class AddTask : ThemedActionBarActivity() {
             } else {
                 tasks.add(task)
             }
-            binding.taskText.setText(tasks.joinToString("\n") { it.text })
+            replaceTextAndRestoreSelection(tasks.joinToString("\n") { it.text }, snapshot, false)
         }
     }
 
-    private fun getCurrentCursorLine(): Int {
-        val selectionStart = binding.taskText.selectionStart
-        if (selectionStart == -1) {
-            return -1
-        }
-
-        val chars = binding.taskText.text.subSequence(0, selectionStart)
-        return (0 until chars.length).count { chars[it] == '\n' }
+    private fun getCurrentCursorLine(snapshot: SelectionSnapshot = selectionSnapshotForMutation()): Int {
+        return AddTaskSelection.currentLine(binding.taskText.text, snapshot)
     }
 
     private fun replaceDueDate(newDueDate: CharSequence) {
-        // save current selection and length
-        val start = binding.taskText.selectionStart
-        val length = binding.taskText.text.length
-        val lines = ArrayList<String>()
-        Collections.addAll(lines, *binding.taskText.text.toString().split("\\n".toRegex()).toTypedArray())
-
-        // For some reason the currentLine can be larger than the amount of lines in the EditText
-        // Check for this case to prevent any array index out of bounds errors
-        var currentLine = getCurrentCursorLine()
-        if (currentLine > lines.size - 1) {
-            currentLine = lines.size - 1
+        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false) { task ->
+            task.dueDate = newDueDate.toString()
         }
-        if (currentLine != -1) {
-            val t = Task(lines[currentLine])
-            t.dueDate = newDueDate.toString()
-            lines[currentLine] = t.inFileFormat(TodoApplication.config.useUUIDs)
-            binding.taskText.setText(join(lines, "\n"))
-        }
-        restoreSelection(start, length, false)
     }
 
     private fun replaceThresholdDate(newThresholdDate: CharSequence) {
-        // save current selection and length
-        val start = binding.taskText.selectionStart
-        val length = binding.taskText.text.length
-        val lines = ArrayList<String>()
-        Collections.addAll(lines, *binding.taskText.text.toString().split("\\n".toRegex()).toTypedArray())
-
-        // For some reason the currentLine can be larger than the amount of lines in the EditText
-        // Check for this case to prevent any array index out of bounds errors
-        var currentLine = getCurrentCursorLine()
-        if (currentLine > lines.size - 1) {
-            currentLine = lines.size - 1
+        mutateCurrentTask(selectionSnapshotForMutation(), moveCursor = false) { task ->
+            task.thresholdDate = newThresholdDate.toString()
         }
-        if (currentLine != -1) {
-            val t = Task(lines[currentLine])
-            t.thresholdDate = newThresholdDate.toString()
-            lines[currentLine] = t.inFileFormat(TodoApplication.config.useUUIDs)
-            binding.taskText.setText(join(lines, "\n"))
-        }
-        restoreSelection(start, length, false)
     }
 
-    private fun restoreSelection(location: Int, oldLength: Int, moveCursor: Boolean) {
-        var newLocation = location
-        val newLength = binding.taskText.text.length
-        val deltaLength = newLength - oldLength
-        // Check if we want the cursor to move by delta (for priority changes)
-        // or not (for due and threshold changes
-        if (moveCursor) {
-            newLocation += deltaLength
-        }
+    private fun replaceTextAndRestoreSelection(updatedText: String, snapshot: SelectionSnapshot, moveCursor: Boolean) {
+        val oldLength = binding.taskText.text.length
+        binding.taskText.setText(updatedText)
+        restoreSelection(snapshot, oldLength, moveCursor)
+    }
 
-        // Don't go out of bounds
-        newLocation = Math.min(newLocation, newLength)
-        newLocation = Math.max(0, newLocation)
+    private fun restoreSelection(snapshot: SelectionSnapshot, oldLength: Int, moveCursor: Boolean) {
+        val newLocation = AddTaskSelection.restoredCursor(
+                selection = snapshot,
+                oldLength = oldLength,
+                newLength = binding.taskText.text.length,
+                moveCursor = moveCursor
+        )
         binding.taskText.setSelection(newLocation, newLocation)
+        rememberCurrentSelection()
     }
 
-    private fun replacePriority(newPriority: CharSequence) {
-        // save current selection and length
-        val start = binding.taskText.selectionStart
-        val end = binding.taskText.selectionEnd
-        Log.d(TAG, "Current selection: $start-$end")
-        val length = binding.taskText.text.length
+    private fun mutateCurrentTask(snapshot: SelectionSnapshot, moveCursor: Boolean, mutation: (Task) -> Unit) {
         val lines = ArrayList<String>()
         Collections.addAll(lines, *binding.taskText.text.toString().split("\\n".toRegex()).toTypedArray())
 
-        // For some reason the currentLine can be larger than the amount of lines in the EditText
-        // Check for this case to prevent any array index out of bounds errors
-        var currentLine = getCurrentCursorLine()
-        if (currentLine > lines.size - 1) {
-            currentLine = lines.size - 1
-        }
+        val currentLine = AddTaskSelection.normalizeLineIndex(getCurrentCursorLine(snapshot), lines.size)
         if (currentLine != -1) {
-            val t = Task(lines[currentLine])
-            Log.d(TAG, "Changing priority from " + t.priority.toString() + " to " + newPriority.toString())
-            t.priority = Priority.toPriority(newPriority.toString())
-            lines[currentLine] = t.inFileFormat(TodoApplication.config.useUUIDs)
-            binding.taskText.setText(join(lines, "\n"))
+            val task = Task(lines[currentLine])
+            mutation(task)
+            lines[currentLine] = task.inFileFormat(TodoApplication.config.useUUIDs)
+            replaceTextAndRestoreSelection(join(lines, "\n"), snapshot, moveCursor)
         }
-        restoreSelection(start, length, true)
+    }
+
+    private fun replacePriority(newPriority: CharSequence, snapshot: SelectionSnapshot = selectionSnapshotForMutation()) {
+        mutateCurrentTask(snapshot, moveCursor = true) { task ->
+            Log.d(TAG, "Changing priority from " + task.priority.toString() + " to " + newPriority.toString())
+            task.priority = Priority.toPriority(newPriority.toString())
+        }
+    }
+
+    private fun selectionSnapshotForMutation(): SelectionSnapshot {
+        return if (selectionSnapshot.isValid) {
+            selectionSnapshot
+        } else {
+            captureSelectionSnapshot()
+        }
+    }
+
+    private fun captureSelectionSnapshot(): SelectionSnapshot {
+        return AddTaskSelection.snapshot(
+                binding.taskText.selectionStart,
+                binding.taskText.selectionEnd,
+                binding.taskText.text.length
+        )
+    }
+
+    private fun rememberCurrentSelection() {
+        val currentSelection = captureSelectionSnapshot()
+        if (currentSelection.isValid) {
+            selectionSnapshot = currentSelection
+        }
+    }
+
+    private fun registerSelectionSnapshotHooks() {
+        listOf(binding.btnContext, binding.btnProject, binding.btnPrio, binding.btnDue, binding.btnThreshold)
+                .forEach { button ->
+                    button.setOnTouchListener { _, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                            rememberCurrentSelection()
+                        }
+                        false
+                    }
+                }
     }
 
     private fun replaceTextAtSelection(newText: CharSequence, spaces: Boolean) {
