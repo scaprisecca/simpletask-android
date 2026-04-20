@@ -1,8 +1,6 @@
 package nl.mpcjanssen.simpletask.calendar
 
 import junit.framework.TestCase
-import nl.mpcjanssen.simpletask.Query
-import org.json.JSONObject
 
 class CalendarModeStateTest : TestCase() {
     fun testScheduledDateVisibilityFallsBackToBoth() {
@@ -11,10 +9,13 @@ class CalendarModeStateTest : TestCase() {
     }
 
     fun testCalendarModeStateRoundTripsThroughMap() {
-        val queryJson = Query("mainui").apply {
-            search = "calendar"
-            hideCompleted = true
-        }.saveInJSON(JSONObject()).toString()
+        val queryJson = """
+            {
+              "query":"calendar",
+              "hide_completed":true,
+              "hide_hidden":true
+            }
+        """.trimIndent()
         val original = CalendarModeState(
             active = true,
             selectedDate = "2026-04-04",
@@ -29,7 +30,25 @@ class CalendarModeStateTest : TestCase() {
         val restored = CalendarModeState.fromMap(original.toMap())
 
         assertEquals(original, restored)
-        assertEquals("calendar", restored?.listSnapshot?.restoreQuery()?.search)
-        assertTrue(restored?.listSnapshot?.restoreQuery()?.hideCompleted == true)
+        assertEquals(queryJson, restored?.listSnapshot?.mainQueryJson)
+    }
+
+    fun testExitClearsActiveCalendarStateAndReturnsListSnapshot() {
+        val snapshot = CalendarListSnapshot(
+            mainQueryJson = "{}",
+            scrollPosition = 3,
+            scrollOffset = 14
+        )
+        val state = CalendarModeState(
+            active = true,
+            selectedDate = "2026-04-21",
+            visibleMonth = "2026-04",
+            listSnapshot = snapshot
+        )
+
+        val result = CalendarModeTransitions.exit(state)
+
+        assertEquals(CalendarModeState(), result.nextState)
+        assertEquals(snapshot, result.restoredListSnapshot)
     }
 }

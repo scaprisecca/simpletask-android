@@ -48,6 +48,7 @@ import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.adapters.DrawerAdapter
 import nl.mpcjanssen.simpletask.calendar.CalendarListSnapshot
 import nl.mpcjanssen.simpletask.calendar.CalendarModeState
+import nl.mpcjanssen.simpletask.calendar.CalendarModeTransitions
 import nl.mpcjanssen.simpletask.calendar.CalendarMonthPagerAdapter
 import nl.mpcjanssen.simpletask.calendar.CalendarTaskProjector
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileListAdapter
@@ -156,7 +157,7 @@ class Simpletask : ThemedNoActionBarActivity() {
             openCalendarMonthPicker()
         }
         binding.calendarMode.calendarClose.setOnClickListener {
-            showMainListMode()
+            exitCalendarMode()
         }
         binding.calendarMode.calendarMonthPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
@@ -514,10 +515,10 @@ class Simpletask : ThemedNoActionBarActivity() {
     }
 
     private fun exitCalendarMode() {
-        val snapshot = calendarState.listSnapshot
-        calendarState = CalendarModeState()
+        val exitResult = CalendarModeTransitions.exit(calendarState)
+        calendarState = exitResult.nextState
         showMainListMode()
-        snapshot?.let {
+        exitResult.restoredListSnapshot?.let {
             TodoApplication.config.mainQuery = it.restoreQuery()
             TodoApplication.config.lastScrollPosition = it.scrollPosition
             TodoApplication.config.lastScrollOffset = it.scrollOffset
