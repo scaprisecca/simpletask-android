@@ -34,6 +34,35 @@ Cloudless stores tasks in a todo.txt file on the device. A separate app (such as
 Because the todo.txt file could be anywhere on the device to allow sync by a different app, the Cloudless version
 requests full storage access. This is unfortunately the only way to make common use case work while staying sane.
 
+### Local development build
+
+Use the repo-local helper script from the project root to build the cloudless flavor after making code changes:
+
+```bash
+./scripts/build_cloudless.sh
+```
+
+The script wraps the Gradle build with the Java and Android SDK settings that work for this project and defaults to:
+
+```bash
+./gradlew assembleCloudlessDebug
+```
+
+Other common uses:
+
+```bash
+./scripts/build_cloudless.sh installCloudlessDebug
+./scripts/build_cloudless.sh assembleCloudlessRelease -- --stacktrace
+```
+
+If needed, you can override the tool locations for your machine:
+
+```bash
+JAVA11_HOME=/path/to/jdk11 ANDROID_SDK_ROOT=/path/to/android-sdk ./scripts/build_cloudless.sh
+```
+
+If `local.properties` is missing, the script creates it automatically. Do not commit machine-local SDK paths.
+
 ## Nextcloud Version
 
 <a href="https://f-droid.org/repository/browse/?fdid=nl.mpcjanssen.simpletask.nextcloud" target="_blank">

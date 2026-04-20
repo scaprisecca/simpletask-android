@@ -8,13 +8,20 @@ Flavor-specific code is split by backend in `app/src/cloudless`, `app/src/nextcl
 ## Build, Test, and Development Commands
 Use the Gradle wrapper from the repo root:
 
+- `./scripts/build_cloudless.sh` is the preferred local helper for cloudless builds. It pins Gradle to JDK 11, exports the Android SDK path, creates `local.properties` if missing, and defaults to `assembleCloudlessDebug`.
 - `./gradlew assembleCloudlessDebug` builds the default local-file flavor.
 - `./gradlew assembleNextcloudDebug` builds a remote-sync variant.
 - `./gradlew test` runs JVM unit tests in `app/src/test/java`.
 - `./gradlew lint` runs Android lint with the project’s configured disabled checks.
 - `./gradlew installCloudlessDebug` installs the debug APK on a connected device or emulator.
 
-Release signing is optional. Sample local config lives in `gradle.properties.sample` and `local.properties.sample`.
+Common helper-script invocations:
+
+- `./scripts/build_cloudless.sh` builds the default local-file flavor.
+- `./scripts/build_cloudless.sh installCloudlessDebug` builds and installs on a connected device or emulator.
+- `./scripts/build_cloudless.sh assembleCloudlessRelease -- --stacktrace` runs a release build with extra Gradle flags.
+
+Release signing is optional. Sample local config lives in `gradle.properties.sample` and `local.properties.sample`. Do not commit machine-local `local.properties` changes.
 
 ## Coding Style & Naming Conventions
 Follow the existing style in the touched file. Kotlin and Java both use 4-space indentation and keep package names lower-case (`nl.mpcjanssen.simpletask`). Class names use `UpperCamelCase`; methods, properties, and local variables use `lowerCamelCase`; constants use `UPPER_SNAKE_CASE`.
