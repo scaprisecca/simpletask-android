@@ -4,7 +4,9 @@ import java.io.File
 
 data class FavoriteFileSwitcherRow(
     val favorite: FavoriteTodoFile,
-    val isActive: Boolean
+    val isActive: Boolean,
+    val title: String,
+    val subtitle: String
 )
 
 object FavoriteFileSwitcherModel {
@@ -13,7 +15,9 @@ object FavoriteFileSwitcherModel {
         return favorites.map {
             FavoriteFileSwitcherRow(
                 favorite = it,
-                isActive = it.path == activePath
+                isActive = it.path == activePath,
+                title = it.displayName,
+                subtitle = it.detailText
             )
         }
     }

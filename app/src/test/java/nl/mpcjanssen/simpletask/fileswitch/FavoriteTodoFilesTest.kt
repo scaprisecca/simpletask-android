@@ -17,6 +17,16 @@ class FavoriteTodoFilesTest : TestCase() {
         assertEquals(listOf("alpha.txt", "zeta.txt"), restored.map { it.fileName })
     }
 
+    fun testRoundTripPreservesOptionalLabel() {
+        val stored = FavoriteTodoFiles.toStoredValue(
+            listOf(FavoriteTodoFile("/tmp/home/todo.txt", label = "Personal"))
+        )
+
+        val restored = FavoriteTodoFiles.fromStoredValue(stored)
+
+        assertEquals("Personal", restored.single().label)
+    }
+
     fun testAddDeduplicatesCanonicalPaths() {
         val current = listOf(FavoriteTodoFile(File("/tmp/favorites/../favorites/todo.txt").canonicalPath))
 

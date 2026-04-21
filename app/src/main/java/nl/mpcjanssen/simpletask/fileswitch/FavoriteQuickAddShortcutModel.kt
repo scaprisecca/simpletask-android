@@ -7,12 +7,14 @@ data class FavoriteQuickAddShortcutSpec(
 
 object FavoriteQuickAddShortcutModel {
     fun buildSpecs(favorites: List<FavoriteTodoFile>): List<FavoriteQuickAddShortcutSpec> {
-        val duplicateCounts = favorites.groupingBy { it.fileName }.eachCount()
+        val duplicateCounts = favorites.groupingBy { it.displayName }.eachCount()
         return favorites.map { favorite ->
-            val label = if ((duplicateCounts[favorite.fileName] ?: 0) > 1) {
-                "${favorite.fileName} — ${favorite.parentPath.ifBlank { "/" }}"
+            val label = if ((duplicateCounts[favorite.displayName] ?: 0) > 1) {
+                listOf(favorite.displayName, favorite.detailText.ifBlank { "/" })
+                    .filter { it.isNotBlank() }
+                    .joinToString(" — ")
             } else {
-                favorite.fileName
+                favorite.displayName
             }
             FavoriteQuickAddShortcutSpec(favorite = favorite, label = label)
         }

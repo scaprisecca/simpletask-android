@@ -37,6 +37,10 @@ class AddTask : ThemedActionBarActivity() {
     private var mBroadcastReceiver: BroadcastReceiver? = null
     private var localBroadcastManager: LocalBroadcastManager? = null
     private lateinit var binding: AddTaskBinding
+    private lateinit var quickAddTargetResolution: QuickAddTargetResolution
+    private var launchedFromShortcut = false
+    private var usesIsolatedTargetMetadata = false
+    private var targetMetadataSuggestions = QuickAddMetadataSuggestions(emptyList(), emptyList())
     /*
         Deprecated functions still work fine.
         For now keep using the old version, will updated if it breaks.
@@ -83,6 +87,23 @@ class AddTask : ThemedActionBarActivity() {
         }
 
         setTitle(R.string.addtask)
+        launchedFromShortcut = intent.getBooleanExtra(Constants.EXTRA_FROM_LAUNCHER_SHORTCUT, false)
+        quickAddTargetResolution = QuickAddTarget.resolve(intent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE), TodoApplication.config.todoFile)
+        if (QuickAddSession.shouldBlockLaunch(quickAddTargetResolution.hasExplicitTarget, activeEditorCount)) {
+            showToastLong(this, R.string.shortcut_addtask_finish_current_edit)
+            closeShortcutCapture()
+            return
+        }
+        usesIsolatedTargetMetadata = QuickAddSession.usesIsolatedMetadata(
+            quickAddTargetResolution,
+            TodoApplication.config.todoFile
+        ) && QuickAddTarget.isExplicitTargetAllowed(
+            quickAddTargetResolution.targetFile,
+            TodoApplication.config.favoriteTodoFiles
+        )
+        if (usesIsolatedTargetMetadata) {
+            loadTargetMetadataSuggestions(quickAddTargetResolution.targetFile)
+        }
 
         Log.d(TAG, "Fill addtask")
 
@@ -235,7 +256,7 @@ class AddTask : ThemedActionBarActivity() {
         // Don't add empty tasks
         if (input.trim { it <= ' ' }.isEmpty()) {
             Log.i(TAG, "Not adding empty line")
-            finish()
+            closeShortcutCapture()
             return
         }
 
@@ -248,7 +269,7 @@ class AddTask : ThemedActionBarActivity() {
             }
         }
         val origTasks = todoList.pendingEdits
-        val targetResolution = QuickAddTarget.resolve(intent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE), TodoApplication.config.todoFile)
+        val targetResolution = quickAddTargetResolution
         Log.i(TAG, "Saving ${enteredTasks.size} tasks, updating $origTasks tasks")
 
         if (targetResolution.hasExplicitTarget && origTasks.isNotEmpty()) {
@@ -311,10 +332,18 @@ class AddTask : ThemedActionBarActivity() {
         }
     }
 
+    private fun closeShortcutCapture() {
+        if (launchedFromShortcut && TodoApplication.atLeastAPI(21)) {
+            finishAndRemoveTask()
+        } else {
+            finish()
+        }
+    }
+
     private fun finishEdit(confirmation: Boolean) {
         val close = DialogInterface.OnClickListener { _, _ ->
             TodoApplication.todoList.clearPendingEdits()
-            finish()
+            closeShortcutCapture()
         }
         if (confirmation && (binding.taskText.text.toString() != startText)) {
             showConfirmationDialog(this, R.string.cancel_changes, close, null)
@@ -389,7 +418,7 @@ class AddTask : ThemedActionBarActivity() {
         val items = TreeSet<String>()
         val snapshot = selectionSnapshotForMutation()
 
-        items.addAll(TodoApplication.todoList.projects)
+        items.addAll(projectSuggestions())
         // Also display projects in tasks being added
         val tasks = getTasks()
         if (tasks.size == 0) {
@@ -438,11 +467,40 @@ class AddTask : ThemedActionBarActivity() {
         return input.split("\r\n|\r|\n".toRegex()).asSequence().map(::Task).toMutableList()
     }
 
+    private fun contextSuggestions(): List<String> {
+        return if (usesIsolatedTargetMetadata) {
+            targetMetadataSuggestions.contexts
+        } else {
+            TodoApplication.todoList.contexts
+        }
+    }
+
+    private fun projectSuggestions(): List<String> {
+        return if (usesIsolatedTargetMetadata) {
+            targetMetadataSuggestions.projects
+        } else {
+            TodoApplication.todoList.projects
+        }
+    }
+
+    private fun loadTargetMetadataSuggestions(targetFile: java.io.File) {
+        FileStoreActionQueue.add("Load quick-add target metadata") {
+            try {
+                val suggestions = QuickAddMetadata.collectSuggestions(FileStore.loadTasksFromFile(targetFile))
+                runOnMainThread(Runnable {
+                    targetMetadataSuggestions = suggestions
+                })
+            } catch (e: Exception) {
+                Log.w(TAG, "Unable to load quick-add metadata for ${targetFile.path}", e)
+            }
+        }
+    }
+
     private fun showListMenu() {
         val items = TreeSet<String>()
         val snapshot = selectionSnapshotForMutation()
 
-        items.addAll(TodoApplication.todoList.contexts)
+        items.addAll(contextSuggestions())
         // Also display contexts in tasks being added
         val tasks = getTasks()
         if (tasks.size == 0) {
@@ -566,6 +624,16 @@ class AddTask : ThemedActionBarActivity() {
                 text, 0, text.length)
     }
 
+    public override fun onStart() {
+        super.onStart()
+        activeEditorCount += 1
+    }
+
+    public override fun onStop() {
+        activeEditorCount = maxOf(0, activeEditorCount - 1)
+        super.onStop()
+    }
+
     public override fun onDestroy() {
         super.onDestroy()
         mBroadcastReceiver?.let {
@@ -576,5 +644,6 @@ class AddTask : ThemedActionBarActivity() {
     companion object {
         private const val TAG = "AddTask"
         private val explicitTargetSaveLock = Any()
+        private var activeEditorCount = 0
     }
 }

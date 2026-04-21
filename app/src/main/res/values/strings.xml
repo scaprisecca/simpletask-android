@@ -50,10 +50,15 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="favorite_file_added">Favorite added</string>
     <string name="favorite_file_exists">File is already a favorite</string>
     <string name="favorite_file_remove">Remove favorite</string>
+    <string name="favorite_file_label_edit">Edit favorite label</string>
+    <string name="favorite_file_label_title">Favorite label</string>
+    <string name="favorite_file_label_message">Optional nickname for this favorite file.</string>
+    <string name="favorite_file_label_saved">Favorite label saved</string>
     <string name="favorite_file_current">Current</string>
     <string name="favorite_file_switcher_empty">No favorite files yet.</string>
     <string name="favorite_file_unavailable">Can\'t open favorite file: %1$s</string>
     <string name="shortcut_addtask_new_tasks_only">Quick-add shortcuts only support creating new tasks</string>
+    <string name="shortcut_addtask_finish_current_edit">Finish the current edit before using a file-specific quick add</string>
     <string name="favorite_file_pending_changes_title">Unsaved changes</string>
     <string name="favorite_file_pending_changes_message">Save changes before switching files?</string>
     <string name="discard">Discard</string>

@@ -58,6 +58,14 @@
     </LinearLayout>
 
     <ImageButton
+        android:id="@+id/favorite_file_rename"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/favorite_file_label_edit"
+        android:src="@android:drawable/ic_menu_edit" />
+
+    <ImageButton
         android:id="@+id/favorite_file_remove"
         style="?android:attr/borderlessButtonStyle"
         android:layout_width="wrap_content"

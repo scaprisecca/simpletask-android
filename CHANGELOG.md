@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Favorite todo files can now be pinned as dedicated quick-add shortcuts that open the normal Add Task screen and save new tasks directly into the selected list
+- Favorite labels can now be added to favorite todo files to keep the favorites switcher and quick-add shortcut chooser easier to scan
 - Favorite todo file switcher for quick navigation between frequently-used files
   - Add current file to favorites list from overflow menu
   - Open dedicated switcher dialog with alphabetically-sorted favorites
@@ -18,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Close button in calendar view for returning to task list
 
 ### Fixed
+- Quick-add shortcuts now launch in their own capture flow so saving or cancelling returns cleanly instead of leaving the main app open unexpectedly
+- File-specific quick-add sessions now load context/project suggestions from the shortcut target file instead of the currently active file
+- File-specific quick-add now shows a warning and stays out of the way if another Add Task editor is already open
 - Exiting calendar view with the header close button now fully restores normal task-list mode, including the correct title and task editing/selection toolbar behavior
 - Add Task now moves the cursor to the end of the current task after inserting contexts, projects, due dates, and threshold dates, even when the task wraps across multiple on-screen lines
 - Add Task now keeps the cursor on the active line when inserting contexts, projects, and priorities after the editor loses focus to the toolbar

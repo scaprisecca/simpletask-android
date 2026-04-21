@@ -1171,14 +1171,13 @@ class Simpletask : ThemedNoActionBarActivity() {
 
     private fun addCurrentFileToFavorites() {
         val currentFile = TodoApplication.config.todoFile
-        val updatedFavorites = FavoriteTodoFiles.add(TodoApplication.config.favoriteTodoFiles, currentFile)
-        val existingFavorites = TodoApplication.config.favoriteTodoFiles
-        if (updatedFavorites == existingFavorites) {
-            showToastShort(this, R.string.favorite_file_exists)
-            return
+        val currentPath = try {
+            currentFile.canonicalPath
+        } catch (_: Exception) {
+            currentFile.absolutePath
         }
-        TodoApplication.config.favoriteTodoFiles = updatedFavorites
-        showToastShort(this, R.string.favorite_file_added)
+        val existingFavorite = TodoApplication.config.favoriteTodoFiles.firstOrNull { it.path == currentPath }
+        showFavoriteLabelDialog(currentFile, existingFavorite)
     }
 
     private fun showFavoriteFileSwitcher() {
@@ -1191,6 +1190,11 @@ class Simpletask : ThemedNoActionBarActivity() {
             onSelect = { favorite ->
                 favoriteFileSwitcherDialog?.dismiss()
                 startFavoriteFileSwitch(favorite)
+            },
+            onRename = { favorite ->
+                showFavoriteLabelDialog(File(favorite.path), favorite) {
+                    refreshFavoriteFileSwitcher(adapter, listView, emptyView)
+                }
             },
             onRemove = { favorite ->
                 removeFavoriteFile(favorite)
@@ -1224,6 +1228,33 @@ class Simpletask : ThemedNoActionBarActivity() {
         val empty = rows.isEmpty()
         emptyView.visibility = if (empty) View.VISIBLE else View.GONE
         listView.visibility = if (empty) View.GONE else View.VISIBLE
+    }
+
+    private fun showFavoriteLabelDialog(
+        file: File,
+        existingFavorite: FavoriteTodoFile?,
+        onSaved: (() -> Unit)? = null
+    ) {
+        val input = EditText(this)
+        input.setText(existingFavorite?.label.orEmpty())
+        input.setSelection(input.text.length)
+
+        AlertDialog.Builder(this)
+            .setTitle(if (existingFavorite == null) R.string.favorite_file_label_title else R.string.favorite_file_label_edit)
+            .setMessage(R.string.favorite_file_label_message)
+            .setView(input)
+            .setPositiveButton(R.string.save_task) { _, _ ->
+                val updatedFavorites = if (existingFavorite == null) {
+                    FavoriteTodoFiles.add(TodoApplication.config.favoriteTodoFiles, file, input.text?.toString())
+                } else {
+                    FavoriteTodoFiles.relabel(TodoApplication.config.favoriteTodoFiles, file, input.text?.toString())
+                }
+                TodoApplication.config.favoriteTodoFiles = updatedFavorites
+                showToastShort(this, if (existingFavorite == null) R.string.favorite_file_added else R.string.favorite_file_label_saved)
+                onSaved?.invoke()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun removeFavoriteFile(favorite: FavoriteTodoFile) {

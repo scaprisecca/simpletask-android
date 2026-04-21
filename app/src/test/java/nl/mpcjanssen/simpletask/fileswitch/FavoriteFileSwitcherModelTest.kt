@@ -16,6 +16,17 @@ class FavoriteFileSwitcherModelTest : TestCase() {
         assertTrue(rows[1].isActive)
     }
 
+    fun testBuildRowsUsesLabelAsPrimaryTitle() {
+        val favorites = listOf(
+            FavoriteTodoFile("/tmp/home/todo.txt", label = "Home"),
+        )
+
+        val rows = FavoriteFileSwitcherModel.buildRows(favorites, File("/tmp/home/todo.txt"))
+
+        assertEquals("Home", rows.single().title)
+        assertEquals("todo.txt — /tmp/home", rows.single().subtitle)
+    }
+
     fun testBuildRowsUsesCanonicalPathForActiveComparison() {
         val favorites = listOf(FavoriteTodoFile(File("/tmp/favorites/../favorites/todo.txt").canonicalPath))
 

@@ -75,6 +75,8 @@ class AddTaskShortcut : ThemedNoActionBarActivity() {
     private fun setupShortcut(targetPath: String?, shortcutName: String) {
         val shortcutIntent = Intent(Intent.ACTION_MAIN).apply {
             setClassName(this@AddTaskShortcut, AddTask::class.java.name)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+            putExtra(Constants.EXTRA_FROM_LAUNCHER_SHORTCUT, true)
             targetPath?.let { putExtra(Constants.EXTRA_TARGET_TODO_FILE, it) }
         }
 

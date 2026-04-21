@@ -11,6 +11,14 @@ class FavoriteQuickAddShortcutModelTest : TestCase() {
         assertEquals(listOf("inbox.txt"), specs.map { it.label })
     }
 
+    fun testBuildSpecsUsesFavoriteLabelWhenPresent() {
+        val specs = FavoriteQuickAddShortcutModel.buildSpecs(
+            listOf(FavoriteTodoFile("/lists/inbox.txt", label = "Groceries"))
+        )
+
+        assertEquals(listOf("Groceries"), specs.map { it.label })
+    }
+
     fun testBuildSpecsIncludesParentPathForDuplicateNames() {
         val specs = FavoriteQuickAddShortcutModel.buildSpecs(
             listOf(
