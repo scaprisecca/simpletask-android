@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Favorite todo files can now be pinned as dedicated quick-add shortcuts that open the normal Add Task screen and save new tasks directly into the selected list
 - Favorite todo file switcher for quick navigation between frequently-used files
   - Add current file to favorites list from overflow menu
   - Open dedicated switcher dialog with alphabetically-sorted favorites

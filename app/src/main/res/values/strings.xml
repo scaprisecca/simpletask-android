@@ -53,6 +53,7 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="favorite_file_current">Current</string>
     <string name="favorite_file_switcher_empty">No favorite files yet.</string>
     <string name="favorite_file_unavailable">Can\'t open favorite file: %1$s</string>
+    <string name="shortcut_addtask_new_tasks_only">Quick-add shortcuts only support creating new tasks</string>
     <string name="favorite_file_pending_changes_title">Unsaved changes</string>
     <string name="favorite_file_pending_changes_message">Save changes before switching files?</string>
     <string name="discard">Discard</string>
@@ -355,6 +356,8 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="separator">Separator</string>
     <!-- launcher shortcut -->
     <string name="shortcut_addtask_name">Add Task</string>
+    <string name="shortcut_addtask_choose_file">Choose favorite file</string>
+    <string name="shortcut_addtask_name_for_file">Add to %1$s</string>
     <!-- share -->
     <string name="share_addtask_name">Simpletask it</string>
     <string name="none">none</string>

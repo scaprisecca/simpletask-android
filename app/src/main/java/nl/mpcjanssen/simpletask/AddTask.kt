@@ -19,9 +19,11 @@ import android.view.Window
 import android.view.WindowManager
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.databinding.AddTaskBinding
+import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Priority
 import nl.mpcjanssen.simpletask.task.Task
 import nl.mpcjanssen.simpletask.util.*
+import java.io.IOException
 import java.util.*
 
 class AddTask : ThemedActionBarActivity() {
@@ -246,12 +248,67 @@ class AddTask : ThemedActionBarActivity() {
             }
         }
         val origTasks = todoList.pendingEdits
+        val targetResolution = QuickAddTarget.resolve(intent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE), TodoApplication.config.todoFile)
         Log.i(TAG, "Saving ${enteredTasks.size} tasks, updating $origTasks tasks")
+
+        if (targetResolution.hasExplicitTarget && origTasks.isNotEmpty()) {
+            showToastShort(this, R.string.shortcut_addtask_new_tasks_only)
+            return
+        }
+
+        if (targetResolution.hasExplicitTarget && targetResolution.targetFile != TodoApplication.config.todoFile) {
+            if (!QuickAddTarget.isExplicitTargetAllowed(targetResolution.targetFile, TodoApplication.config.favoriteTodoFiles) || !FileStore.isOnline) {
+                showToastLong(this, getString(R.string.favorite_file_unavailable, targetResolution.targetFile.name))
+                return
+            }
+            saveTasksToExplicitTarget(
+                targetResolution.targetFile,
+                enteredTasks,
+                onSuccess = { finishEdit(confirmation = false) }
+            )
+            return
+        }
+
         todoList.update(origTasks, enteredTasks, TodoApplication.config.hasAppendAtEnd)
 
         // Save
         todoList.notifyTasklistChanged(TodoApplication.config.todoFile, save = true, refreshMainUI = false)
         finishEdit(confirmation = false)
+    }
+
+    private fun saveTasksToExplicitTarget(
+        targetFile: java.io.File,
+        enteredTasks: List<Task>,
+        onSuccess: () -> Unit
+    ) {
+        val newLines = enteredTasks.map { it.inFileFormat(TodoApplication.config.useUUIDs) }
+        FileStoreActionQueue.add("Save shortcut quick-add task") {
+            try {
+                synchronized(explicitTargetSaveLock) {
+                    val existingLines = FileStore.loadTasksFromFile(targetFile)
+                    val mergedLines = QuickAddTarget.mergeExistingAndNewLines(
+                            existingLines = existingLines,
+                            newLines = newLines,
+                            appendAtEnd = TodoApplication.config.hasAppendAtEnd
+                    )
+                    val savedFile = FileStore.saveTasksToFile(targetFile, mergedLines, TodoApplication.config.eol)
+                    val persistedLines = FileStore.loadTasksFromFile(savedFile)
+                    if (persistedLines != mergedLines) {
+                        throw IOException("Quick-add save verification failed for ${targetFile.path}")
+                    }
+                }
+                runOnMainThread(Runnable {
+                    showToastShort(TodoApplication.app, R.string.task_added)
+                    broadcastRefreshWidgets(TodoApplication.app.localBroadCastManager)
+                    onSuccess()
+                })
+            } catch (e: Exception) {
+                Log.e(TAG, "Quick-add save to ${targetFile.path} failed", e)
+                runOnMainThread(Runnable {
+                    showToastLong(TodoApplication.app, getString(R.string.favorite_file_unavailable, targetFile.name))
+                })
+            }
+        }
     }
 
     private fun finishEdit(confirmation: Boolean) {
@@ -269,7 +326,6 @@ class AddTask : ThemedActionBarActivity() {
 
     override fun onBackPressed() {
         saveTasksAndClose()
-        super.onBackPressed()
     }
 
     private fun insertDate(dateType: DateType) {
@@ -519,5 +575,6 @@ class AddTask : ThemedActionBarActivity() {
 
     companion object {
         private const val TAG = "AddTask"
+        private val explicitTargetSaveLock = Any()
     }
 }

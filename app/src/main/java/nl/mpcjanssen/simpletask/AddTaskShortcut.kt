@@ -31,24 +31,56 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import androidx.appcompat.app.AlertDialog
+import nl.mpcjanssen.simpletask.fileswitch.FavoriteQuickAddShortcutModel
 
 class AddTaskShortcut : ThemedNoActionBarActivity() {
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "onCreate()")
         super.onCreate(savedInstanceState)
-        setupShortcut()
-        finish()
+        showFavoriteFilePicker()
     }
 
-    private fun setupShortcut() {
-        val shortcutIntent = Intent(Intent.ACTION_MAIN)
-        shortcutIntent.setClassName(this, AddTask::class.java.name)
+    private fun showFavoriteFilePicker() {
+        val favorites = TodoApplication.config.favoriteTodoFiles
+        if (favorites.isEmpty()) {
+            setupShortcut(null, getString(R.string.shortcut_addtask_name))
+            finish()
+            return
+        }
+
+        val specs = FavoriteQuickAddShortcutModel.buildSpecs(favorites)
+        val labels = mutableListOf<String>().apply {
+            add(getString(R.string.shortcut_addtask_name))
+            addAll(specs.map { getString(R.string.shortcut_addtask_name_for_file, it.label) })
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.shortcut_addtask_choose_file)
+            .setItems(labels) { _, which ->
+                if (which == 0) {
+                    setupShortcut(null, labels[which])
+                } else {
+                    setupShortcut(specs[which - 1].favorite.path, labels[which])
+                }
+                finish()
+            }
+            .setOnCancelListener {
+                setResult(Activity.RESULT_CANCELED)
+                finish()
+            }
+            .show()
+    }
+
+    private fun setupShortcut(targetPath: String?, shortcutName: String) {
+        val shortcutIntent = Intent(Intent.ACTION_MAIN).apply {
+            setClassName(this@AddTaskShortcut, AddTask::class.java.name)
+            targetPath?.let { putExtra(Constants.EXTRA_TARGET_TODO_FILE, it) }
+        }
 
         val intent = Intent()
         intent.putExtra(Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent)
-        intent.putExtra(Intent.EXTRA_SHORTCUT_NAME,
-                getString(R.string.shortcut_addtask_name))
+        intent.putExtra(Intent.EXTRA_SHORTCUT_NAME, shortcutName)
         val iconResource = Intent.ShortcutIconResource.fromContext(this,
                 R.drawable.ic_launcher)
         intent.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, iconResource)
