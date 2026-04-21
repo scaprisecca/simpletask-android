@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.util.Log
 
+import nl.mpcjanssen.simpletask.dates.DateLens
+import nl.mpcjanssen.simpletask.dates.DateLensClassifier
+import nl.mpcjanssen.simpletask.dates.WeekStartMode
 import nl.mpcjanssen.simpletask.task.*
 import nl.mpcjanssen.simpletask.util.join
 import nl.mpcjanssen.simpletask.util.todayAsString
@@ -54,6 +57,7 @@ data class Query(val luaModule: String) {
     var useScript: Boolean = false
     var script: String? = null
     var scriptTestTask: String? = null
+    var dateLens: DateLens = DateLens.ALL
 
     constructor(json: JSONObject, luaModule: String) : this(luaModule) {
         initFromJSON(json)
@@ -97,6 +101,7 @@ data class Query(val luaModule: String) {
             put(INTENT_SCRIPT_FILTER, script)
             put(INTENT_USE_SCRIPT_FILTER, useScript)
             put(INTENT_SCRIPT_TEST_TASK_FILTER, scriptTestTask)
+            put(INTENT_DATE_LENS, dateLens.storageValue)
             put(SearchManager.QUERY, search)
         }
     }
@@ -118,6 +123,7 @@ data class Query(val luaModule: String) {
         useScript = json.optBoolean(INTENT_USE_SCRIPT_FILTER, false)
         script = json.optString(INTENT_SCRIPT_FILTER)
         scriptTestTask = json.optString(INTENT_SCRIPT_TEST_TASK_FILTER)
+        dateLens = DateLens.fromStoredValue(json.optString(INTENT_DATE_LENS, DateLens.ALL.storageValue))
 
         prioritiesNot = json.optBoolean(INTENT_PRIORITIES_FILTER_NOT)
         projectsNot = json.optBoolean(INTENT_PROJECTS_FILTER_NOT)
@@ -154,14 +160,19 @@ data class Query(val luaModule: String) {
 
     fun hasFilter(): Boolean {
         return contexts.size + projects.size + priorities.size > 0
-                || !search.isNullOrEmpty() || Interpreter.hasFilterCallback(luaModule)
+                || dateLens.isActiveFilter()
+                || !search.isNullOrEmpty()
+                || (useScript && !script.isNullOrEmpty() && Interpreter.hasFilterCallback(luaModule))
     }
 
-    fun getTitle(visible: Int, total: Int, prio: CharSequence, tag: CharSequence, list: CharSequence, search: CharSequence, script: CharSequence, filterApplied: CharSequence, noFilter: CharSequence): String {
+    fun getTitle(visible: Int, total: Int, prio: CharSequence, tag: CharSequence, list: CharSequence, search: CharSequence, script: CharSequence, dateLensTitle: CharSequence, filterApplied: CharSequence, noFilter: CharSequence): String {
         var filterTitle = "" + filterApplied
         if (hasFilter()) {
             filterTitle = "($visible/$total) $filterTitle"
             val activeParts = ArrayList<String>()
+            if (dateLens.isActiveFilter()) {
+                activeParts.add(dateLensTitle.toString())
+            }
             if (priorities.size > 0) {
                 activeParts.add(prio.toString())
             }
@@ -237,10 +248,14 @@ data class Query(val luaModule: String) {
         prioritiesNot = false
         contextsNot = false
         useScript = false
+        dateLens = DateLens.ALL
         return this
     }
 
     fun initInterpreter(code: String?) {
+        if (code.isNullOrEmpty()) {
+            return
+        }
         try {
             Interpreter.clearOnFilter(luaModule)
             Interpreter.evalScript(luaModule, code)
@@ -249,7 +264,13 @@ data class Query(val luaModule: String) {
         }
     }
 
-    fun applyFilter(items: List<Task>?, showSelected: Boolean): List<Task> {
+    fun applyFilter(
+            items: List<Task>?,
+            showSelected: Boolean,
+            today: String = todayAsString,
+            weekStartMode: WeekStartMode = TodoApplication.config.dateLensWeekStartMode,
+            upcomingWindowDays: Int = TodoApplication.config.dateLensUpcomingWindowDays
+    ): List<Task> {
         val code = if (useScript)
             script
         else
@@ -263,7 +284,10 @@ data class Query(val luaModule: String) {
             return ArrayList()
         }
 
-        val today = todayAsString
+        val dateLensClassifier = DateLensClassifier(
+                today = today,
+                weekStartMode = weekStartMode,
+                upcomingWindowDays = upcomingWindowDays)
         try {
             return  items.filter {
                 if (showSelected && TodoApplication.todoList.isSelected(it)) {
@@ -282,6 +306,9 @@ data class Query(val luaModule: String) {
                     return@filter false
                 }
                 if (!filter.apply(it)) {
+                    return@filter false
+                }
+                if (!dateLensClassifier.matches(it, dateLens)) {
                     return@filter false
                 }
                 if (useScript && !Interpreter.onFilterCallback(luaModule, it).first) {
@@ -362,6 +389,7 @@ data class Query(val luaModule: String) {
         const val INTENT_LUA_MODULE = "MODULE"
         const val INTENT_SCRIPT_FILTER = "LUASCRIPT"
         const val INTENT_SCRIPT_TEST_TASK_FILTER = "LUASCRIPT_TEST_TASK"
+        const val INTENT_DATE_LENS = "DATE_LENS"
 
         const val INTENT_EXTRA_DELIMITERS = "\n"
     }
@@ -384,6 +412,7 @@ data class Query(val luaModule: String) {
 
             script = intent.getStringExtra(INTENT_SCRIPT_FILTER)
             scriptTestTask = intent.getStringExtra(INTENT_SCRIPT_TEST_TASK_FILTER)
+            dateLens = DateLens.fromStoredValue(intent.getStringExtra(INTENT_DATE_LENS))
 
             prioritiesNot = intent.getBooleanExtra(
                     INTENT_PRIORITIES_FILTER_NOT, false)
@@ -446,6 +475,7 @@ data class Query(val luaModule: String) {
             search = prefs.getString(SearchManager.QUERY, null)
             script = prefs.getString(INTENT_SCRIPT_FILTER, null)
             scriptTestTask = prefs.getString(INTENT_SCRIPT_TEST_TASK_FILTER, null)
+            dateLens = DateLens.fromStoredValue(prefs.getString(INTENT_DATE_LENS, null))
         }
         return this
     }

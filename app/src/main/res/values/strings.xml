@@ -426,6 +426,18 @@ You should have received a copy of the GNU General Public License along with Tod
     <string name="date">Date</string>
     <string name="back_clears_filter_title">\"Back\" clears filter</string>
     <string name="back_clears_filter_summary">Back button clears the filter before exiting the app.</string>
+    <string name="date_lens_all">All</string>
+    <string name="date_lens_overdue">Overdue</string>
+    <string name="date_lens_today">Today</string>
+    <string name="date_lens_this_week">This Week</string>
+    <string name="date_lens_upcoming">Upcoming</string>
+    <string name="date_lens_drawer_header">Dates</string>
+    <string name="date_lens_week_start_title">Week starts on</string>
+    <string name="date_lens_week_start_locale">System default</string>
+    <string name="date_lens_week_start_sunday">Sunday</string>
+    <string name="date_lens_week_start_monday">Monday</string>
+    <string name="date_lens_upcoming_window_title">Upcoming window</string>
+    <string name="date_lens_upcoming_window_summary">Number of future days shown by Upcoming.</string>
     <string name="experimental_title">Experimental</string>
     <string name="experimental_summary">Enable experimental features</string>
     <string name="keep_selection_title">Keep selection</string>
@@ -459,5 +471,10 @@ You should have received a copy of the GNU General Public License along with Tod
         <item>@string/calendar_scheduled_dates_both</item>
         <item>@string/calendar_scheduled_dates_due</item>
         <item>@string/calendar_scheduled_dates_threshold</item>
+    </string-array>
+    <string-array name="date_lens_week_start_entries">
+        <item>@string/date_lens_week_start_locale</item>
+        <item>@string/date_lens_week_start_sunday</item>
+        <item>@string/date_lens_week_start_monday</item>
     </string-array>
 </resources>

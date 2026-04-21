@@ -61,6 +61,24 @@
         android:summary="%s"
         android:title="@string/calendar_scheduled_dates_title"
         />
+    <ListPreference
+        android:defaultValue="locale"
+        android:entries="@array/date_lens_week_start_entries"
+        android:entryValues="@array/date_lens_week_start_values"
+        android:key="@string/ui_date_lens_week_start"
+        android:summary="%s"
+        android:title="@string/date_lens_week_start_title"
+        />
+    <com.robobunny.SeekBarPreference xmlns:robobunny="http://robobunny.com"
+        android:max="365"
+        robobunny:min="1"
+        robobunny:unitsLeft=""
+        robobunny:unitsRight=" days"
+        android:defaultValue="14"
+        android:key="@string/ui_date_lens_upcoming_window_days"
+        android:summary="@string/date_lens_upcoming_window_summary"
+        android:title="@string/date_lens_upcoming_window_title"
+        />
     <CheckBoxPreference
             android:defaultValue="false"
             android:key="@string/use_uuids"

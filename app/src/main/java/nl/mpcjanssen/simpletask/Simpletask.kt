@@ -46,12 +46,14 @@ import androidx.core.app.NotificationManagerCompat
 
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.adapters.DrawerAdapter
+import nl.mpcjanssen.simpletask.adapters.QuickFilterDrawerRow
 import nl.mpcjanssen.simpletask.calendar.CalendarListSnapshot
 import nl.mpcjanssen.simpletask.calendar.CalendarModeState
 import nl.mpcjanssen.simpletask.calendar.CalendarModeTransitions
 import nl.mpcjanssen.simpletask.calendar.CalendarMonthPagerAdapter
 import nl.mpcjanssen.simpletask.calendar.CalendarTaskProjector
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileListAdapter
+import nl.mpcjanssen.simpletask.dates.DateLens
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchAction
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchCoordinator
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteFileSwitchPromptChoice
@@ -129,6 +131,7 @@ class Simpletask : ThemedNoActionBarActivity() {
 
         binding = MainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupDateLensChips()
 
         val itemTouchHelperCallback = DragTasksCallback(this.taskAdapter)
         itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
@@ -538,6 +541,49 @@ class Simpletask : ThemedNoActionBarActivity() {
         binding.filteredView.visibility = View.VISIBLE
         binding.calendarMode.root.visibility = View.GONE
         binding.fab.visibility = View.VISIBLE
+    }
+
+    private fun setupDateLensChips() {
+        binding.dateLensAll.setOnClickListener { activateDateLens(DateLens.ALL) }
+        binding.dateLensOverdue.setOnClickListener { activateDateLens(DateLens.OVERDUE) }
+        binding.dateLensToday.setOnClickListener { activateDateLens(DateLens.TODAY) }
+        binding.dateLensThisWeek.setOnClickListener { activateDateLens(DateLens.THIS_WEEK) }
+        binding.dateLensUpcoming.setOnClickListener { activateDateLens(DateLens.UPCOMING) }
+        updateDateLensChips()
+    }
+
+    private fun activateDateLens(lens: DateLens) {
+        val query = TodoApplication.config.mainQuery.clear()
+        query.dateLens = lens
+        TodoApplication.config.mainQuery = query
+        if (!TodoApplication.config.hasKeepSelection) {
+            TodoApplication.todoList.clearSelection()
+        }
+        uiHandler.forEvent(Event.FILTER_CHANGED)
+    }
+
+    private fun updateDateLensChips() {
+        val activeLens = TodoApplication.config.mainQuery.dateLens
+        val buttons = mapOf(
+                DateLens.ALL to binding.dateLensAll,
+                DateLens.OVERDUE to binding.dateLensOverdue,
+                DateLens.TODAY to binding.dateLensToday,
+                DateLens.THIS_WEEK to binding.dateLensThisWeek,
+                DateLens.UPCOMING to binding.dateLensUpcoming)
+        buttons.forEach { (lens, button) ->
+            button.isSelected = lens == activeLens
+            button.isEnabled = lens != activeLens
+        }
+    }
+
+    private fun dateLensLabel(lens: DateLens): String {
+        return when (lens) {
+            DateLens.ALL -> getString(R.string.date_lens_all)
+            DateLens.OVERDUE -> getString(R.string.date_lens_overdue)
+            DateLens.TODAY -> getString(R.string.date_lens_today)
+            DateLens.THIS_WEEK -> getString(R.string.date_lens_this_week)
+            DateLens.UPCOMING -> getString(R.string.date_lens_upcoming)
+        }
     }
 
     private fun onCalendarMonthChanged(visibleMonth: String) {
@@ -1558,6 +1604,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                     Event.SAVED_FILTER_ITEM_CLICK -> {
                         updateTaskList(TodoApplication.config.mainQuery) {
                             updateFilterBar()
+                            updateDateLensChips()
                             updateQuickFilterDrawer()
                         }
                     }
@@ -1565,6 +1612,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                     Event.CLEAR_FILTER -> {
                         updateTaskList(TodoApplication.config.mainQuery) {
                             updateFilterBar()
+                            updateDateLensChips()
                             updateQuickFilterDrawer()
                         }
 
@@ -1582,6 +1630,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                         } else {
                             updateTaskList(TodoApplication.config.mainQuery) {
                                 updateFilterBar()
+                                updateDateLensChips()
                                 updateQuickFilterDrawer()
                                 updateCompletionCheckboxState()
                             }
@@ -1593,6 +1642,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                         } else {
                             updateTaskList(TodoApplication.config.mainQuery) {
                                 updateFilterBar()
+                                updateDateLensChips()
                                 updateQuickFilterDrawer()
                             }
                         }
@@ -1602,6 +1652,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                             refreshCalendarMode()
                         } else {
                             updateFilterBar()
+                            updateDateLensChips()
                             updateSavedFilterDrawer()
                             updateQuickFilterDrawer()
                             updateConnectivityIndicator()
@@ -1613,6 +1664,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                         } else {
                             updateTaskList(TodoApplication.config.mainQuery) {
                                 updateFilterBar()
+                                updateDateLensChips()
                                 updateQuickFilterDrawer()
                             }
                         }
@@ -1644,6 +1696,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                     TodoApplication.config.listTerm,
                     getText(R.string.search),
                     getText(R.string.script),
+                    dateLensLabel(TodoApplication.config.mainQuery.dateLens),
                     getText(R.string.title_filter_applied),
                     getText(R.string.no_filter))
         }
@@ -1671,6 +1724,8 @@ class Simpletask : ThemedNoActionBarActivity() {
                         taskAdapter.setFilteredTasks(this@Simpletask, query)
                         runOnUiThread {
                             closeDrawer(SAVED_FILTER_DRAWER)
+                            updateFilterBar()
+                            updateDateLensChips()
                             updateQuickFilterDrawer()
                         }
                     }
@@ -1711,6 +1766,8 @@ class Simpletask : ThemedNoActionBarActivity() {
             val decoratedContexts = alfaSort(TodoApplication.todoList.contexts, TodoApplication.config.sortCaseSensitive, prefix = "-").map { "@$it" }
             val decoratedProjects = alfaSort(TodoApplication.todoList.projects, TodoApplication.config.sortCaseSensitive, prefix = "-").map { "+$it" }
             val drawerAdapter = DrawerAdapter(layoutInflater,
+                    getString(R.string.date_lens_drawer_header),
+                    DateLens.values().associateWith { dateLensLabel(it) },
                     TodoApplication.config.listTerm,
                     decoratedContexts,
                     TodoApplication.config.tagTerm,
@@ -1720,14 +1777,18 @@ class Simpletask : ThemedNoActionBarActivity() {
             binding.filterDrawer.choiceMode = AbsListView.CHOICE_MODE_MULTIPLE
             binding.filterDrawer.onItemClickListener = DrawerItemClickListener()
 
+            val activeLensIndex = drawerAdapter.model.indexOfLens(TodoApplication.config.mainQuery.dateLens)
+            if (activeLensIndex != -1) {
+                binding.filterDrawer.setItemChecked(activeLensIndex, true)
+            }
 
             TodoApplication.config.mainQuery.contexts.asSequence()
-                    .map { drawerAdapter.getIndexOf("@$it") }
+                    .map { drawerAdapter.model.indexOfContext("@$it") }
                     .filter { it != -1 }
                     .forEach { binding.filterDrawer.setItemChecked(it, true) }
 
             TodoApplication.config.mainQuery.projects.asSequence()
-                    .map { drawerAdapter.getIndexOf("+$it") }
+                    .map { drawerAdapter.model.indexOfProject("+$it") }
                     .filter { it != -1 }
                     .forEach { binding.filterDrawer.setItemChecked(it, true) }
             binding.filterDrawer.setItemChecked(drawerAdapter.contextHeaderPosition, TodoApplication.config.mainQuery.contextsNot)
@@ -1756,10 +1817,20 @@ class Simpletask : ThemedNoActionBarActivity() {
 
         override fun onItemClick(parent: AdapterView<*>, view: View, position: Int,
                                  id: Long) {
-            val tags: ArrayList<String>
             val lv = parent as ListView
             val adapter = lv.adapter as DrawerAdapter
             val query = TodoApplication.config.mainQuery
+            val row = adapter.items[position]
+            if (row is QuickFilterDrawerRow.DateLensItem) {
+                query.clear()
+                query.dateLens = row.lens
+                TodoApplication.config.mainQuery = query
+                if (!TodoApplication.config.hasKeepSelection) {
+                    TodoApplication.todoList.clearSelection()
+                }
+                uiHandler.forEvent(Event.QUICK_FILTER_ITEM_CLICK)
+                return
+            }
             if (adapter.projectsHeaderPosition == position) {
                 query.projectsNot = !query.projectsNot
             }
@@ -1767,15 +1838,18 @@ class Simpletask : ThemedNoActionBarActivity() {
                 query.contextsNot = !query.contextsNot
             }
 
-            tags = getCheckedItems(lv, true)
             val filteredContexts = ArrayList<String>()
             val filteredProjects = ArrayList<String>()
 
-            for (tag in tags) {
-                if (tag.startsWith("+")) {
-                    filteredProjects.add(tag.substring(1))
-                } else if (tag.startsWith("@")) {
-                    filteredContexts.add(tag.substring(1))
+            val checks = lv.checkedItemPositions
+            for (i in 0 until checks.size()) {
+                if (checks.valueAt(i)) {
+                    when (val checkedRow = adapter.items[checks.keyAt(i)]) {
+                        is QuickFilterDrawerRow.ContextItem -> filteredContexts.add(checkedRow.value.substring(1))
+                        is QuickFilterDrawerRow.ProjectItem -> filteredProjects.add(checkedRow.value.substring(1))
+                        else -> {
+                        }
+                    }
                 }
             }
             query.contexts = filteredContexts

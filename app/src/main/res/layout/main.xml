@@ -86,6 +86,75 @@
                             />
                     </LinearLayout>
 
+                    <HorizontalScrollView
+                        android:id="@+id/date_lens_chip_row"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fillViewport="false"
+                        android:scrollbars="none"
+                        android:paddingLeft="4dp"
+                        android:paddingRight="4dp"
+                        >
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            >
+                            <Button
+                                android:id="@+id/date_lens_all"
+                                style="?android:attr/borderlessButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minWidth="0dp"
+                                android:paddingLeft="12dp"
+                                android:paddingRight="12dp"
+                                android:text="@string/date_lens_all"
+                                />
+                            <Button
+                                android:id="@+id/date_lens_overdue"
+                                style="?android:attr/borderlessButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minWidth="0dp"
+                                android:paddingLeft="12dp"
+                                android:paddingRight="12dp"
+                                android:text="@string/date_lens_overdue"
+                                />
+                            <Button
+                                android:id="@+id/date_lens_today"
+                                style="?android:attr/borderlessButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minWidth="0dp"
+                                android:paddingLeft="12dp"
+                                android:paddingRight="12dp"
+                                android:text="@string/date_lens_today"
+                                />
+                            <Button
+                                android:id="@+id/date_lens_this_week"
+                                style="?android:attr/borderlessButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minWidth="0dp"
+                                android:paddingLeft="12dp"
+                                android:paddingRight="12dp"
+                                android:text="@string/date_lens_this_week"
+                                />
+                            <Button
+                                android:id="@+id/date_lens_upcoming"
+                                style="?android:attr/borderlessButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:minWidth="0dp"
+                                android:paddingLeft="12dp"
+                                android:paddingRight="12dp"
+                                android:text="@string/date_lens_upcoming"
+                                />
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@android:id/list"
                         android:layout_width="match_parent"

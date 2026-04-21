@@ -7,6 +7,8 @@ import androidx.annotation.RequiresApi
 import me.smichel.android.KPreferences.Preferences
 import nl.mpcjanssen.simpletask.*
 import nl.mpcjanssen.simpletask.calendar.ScheduledDateVisibility
+import nl.mpcjanssen.simpletask.dates.DateLensClassifier
+import nl.mpcjanssen.simpletask.dates.WeekStartMode
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFile
 import nl.mpcjanssen.simpletask.fileswitch.FavoriteTodoFiles
 import nl.mpcjanssen.simpletask.remote.FileStore
@@ -161,6 +163,22 @@ class Config(app: TodoApplication) : Preferences(app) {
         get() = ScheduledDateVisibility.fromStoredValue(calendarScheduledDatesPreference)
         set(value) {
             calendarScheduledDatesPreference = value.storageValue
+        }
+
+    private var dateLensWeekStartPreference by StringPreference(R.string.ui_date_lens_week_start, WeekStartMode.LOCALE.storageValue)
+    var dateLensWeekStartMode: WeekStartMode
+        get() = WeekStartMode.fromStoredValue(dateLensWeekStartPreference)
+        set(value) {
+            dateLensWeekStartPreference = value.storageValue
+        }
+
+    private var dateLensUpcomingWindowPreference by IntPreference(
+            R.string.ui_date_lens_upcoming_window_days,
+            DateLensClassifier.DEFAULT_UPCOMING_WINDOW_DAYS)
+    var dateLensUpcomingWindowDays: Int
+        get() = DateLensClassifier.normalizeUpcomingWindowDays(dateLensUpcomingWindowPreference)
+        set(value) {
+            dateLensUpcomingWindowPreference = DateLensClassifier.normalizeUpcomingWindowDays(value)
         }
 
     val tasklistTextSize: Float

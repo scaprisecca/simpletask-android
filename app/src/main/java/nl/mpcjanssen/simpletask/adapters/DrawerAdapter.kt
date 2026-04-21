@@ -8,34 +8,40 @@ import android.widget.ListAdapter
 import android.widget.ListView
 import android.widget.TextView
 import nl.mpcjanssen.simpletask.R
-import nl.mpcjanssen.simpletask.util.alfaSort
+import nl.mpcjanssen.simpletask.dates.DateLens
 import nl.mpcjanssen.simpletask.util.getString
 import java.util.*
 
 class DrawerAdapter(private val m_inflater: LayoutInflater,
+                    dateLensHeader: String,
+                    dateLensLabels: Map<DateLens, String>,
                     contextHeader: String,
                     contexts: List<String>,
                     projectHeader: String,
                     projects: List<String>) : BaseAdapter(), ListAdapter {
 
-    internal var items: ArrayList<String>
-    var contextHeaderPosition: Int = 0
-        internal set
-    var projectsHeaderPosition: Int = 0
-        internal set
+    internal var items: ArrayList<QuickFilterDrawerRow>
+    val model: QuickFilterDrawerModel
+    val contextHeaderPosition: Int
+    val projectsHeaderPosition: Int
+    val dateLensHeaderPosition: Int
 
     init {
-        this.items = ArrayList()
-        this.items.add(contextHeader)
-        contextHeaderPosition = 0
-        this.items.addAll(alfaSort(contexts))
-        projectsHeaderPosition = items.size
-        this.items.add(projectHeader)
-        this.items.addAll(alfaSort(projects))
+        model = QuickFilterDrawerModel.build(
+                dateLensHeader,
+                dateLensLabels,
+                contextHeader,
+                contexts,
+                projectHeader,
+                projects)
+        this.items = ArrayList(model.rows)
+        dateLensHeaderPosition = model.dateLensHeaderPosition
+        contextHeaderPosition = model.contextHeaderPosition
+        projectsHeaderPosition = model.projectsHeaderPosition
     }
 
     private fun isHeader(position: Int): Boolean {
-        return position == contextHeaderPosition || position == projectsHeaderPosition
+        return items[position] is QuickFilterDrawerRow.Header
     }
 
     override fun getCount(): Int {
@@ -43,7 +49,12 @@ class DrawerAdapter(private val m_inflater: LayoutInflater,
     }
 
     override fun getItem(position: Int): String {
-        return items[position]
+        return when (val item = items[position]) {
+            is QuickFilterDrawerRow.Header -> item.label
+            is QuickFilterDrawerRow.DateLensItem -> item.label
+            is QuickFilterDrawerRow.ContextItem -> item.value
+            is QuickFilterDrawerRow.ProjectItem -> item.value
+        }
     }
 
     override fun getItemId(position: Int): Long {
@@ -63,9 +74,9 @@ class DrawerAdapter(private val m_inflater: LayoutInflater,
             tv = view as TextView
             val lv = parent as ListView
             if (lv.isItemChecked(position)) {
-                tv.text = items[position] + " " + getString(R.string.quick_filter_tag_header_inverted)
+                tv.text = getItem(position) + " " + getString(R.string.quick_filter_tag_header_inverted)
             } else {
-                tv.text = items[position]
+                tv.text = getItem(position)
             }
 
         } else {
@@ -73,7 +84,12 @@ class DrawerAdapter(private val m_inflater: LayoutInflater,
                 view = m_inflater.inflate(R.layout.drawer_list_item_checked, parent, false)
             }
             tv = view as TextView
-            tv.text = items[position].substring(1)
+            tv.text = when (val item = items[position]) {
+                is QuickFilterDrawerRow.DateLensItem -> item.label
+                is QuickFilterDrawerRow.ContextItem -> item.value.substring(1)
+                is QuickFilterDrawerRow.ProjectItem -> item.value.substring(1)
+                is QuickFilterDrawerRow.Header -> item.label
+            }
         }
 
         return view
@@ -104,8 +120,14 @@ class DrawerAdapter(private val m_inflater: LayoutInflater,
     }
 
     fun getIndexOf(item: String): Int {
-        return items.indexOf(item)
+        return items.indexOfFirst {
+            when (it) {
+                is QuickFilterDrawerRow.ContextItem -> it.value == item
+                is QuickFilterDrawerRow.ProjectItem -> it.value == item
+                is QuickFilterDrawerRow.DateLensItem -> it.lens.storageValue == item
+                is QuickFilterDrawerRow.Header -> it.label == item
+            }
+        }
     }
 }
-
 
