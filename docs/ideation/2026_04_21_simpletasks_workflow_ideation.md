@@ -185,6 +185,9 @@ focus: workflow improvements for power todo.txt users, especially vault + multi-
   - hide hidden tasks
   - hide lists/tags
   - sort order
+- post-implementation manual QA result:
+  - current date-lens behavior works as expected in manual testing
+  - open workflow question remains whether returning to `all` should clear all other filters or restore the user's previous non-date filter state
 - agenda mode should start as a composition of built-in date lenses
   - v1 sections should be fixed and ordered as: `overdue`, `today`, `this_week`, `upcoming`
   - empty sections should be hidden in v1
