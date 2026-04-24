@@ -22,3 +22,5 @@ Thumbs.db
 captures/
 .DS_Store
 Makefile
+
+.compound-engineering/*.local.yaml
