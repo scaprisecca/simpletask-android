@@ -12,7 +12,6 @@ import nl.mpcjanssen.simpletask.MarkTaskDone
 import nl.mpcjanssen.simpletask.R
 import nl.mpcjanssen.simpletask.TodoApplication
 import nl.mpcjanssen.simpletask.UnpinTaskNotification
-import nl.mpcjanssen.simpletask.PinnedNotificationDismissedReceiver
 import nl.mpcjanssen.simpletask.task.Task
 import java.util.Date
 import java.util.concurrent.Executors
@@ -222,11 +221,11 @@ class PinnedTaskNotificationManager(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
-        val dismissedIntent = Intent(context, PinnedNotificationDismissedReceiver::class.java).let {
+        val dismissedIntent = Intent(context, UnpinTaskNotification::class.java).let {
             it.putExtra(Constants.EXTRA_PINNED_TASK_KEY, record.taskKey)
-            PendingIntent.getBroadcast(
+            PendingIntent.getService(
                 context,
-                record.notificationId,
+                record.notificationId + 2,
                 it,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -240,11 +239,10 @@ class PinnedTaskNotificationManager(private val context: Context) {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOnlyAlertOnce(true)
             .setAutoCancel(false)
-            .setOngoing(true)
             .setContentIntent(editIntent)
             .setDeleteIntent(dismissedIntent)
             .addAction(R.drawable.ic_done_white_24dp, context.getString(R.string.done), doneIntent)
-            .addAction(R.drawable.ic_push_pin_white_24dp, context.getString(R.string.unpin_notification), unpinIntent)
+            .addAction(R.drawable.ic_push_pin_white_24dp, context.getString(R.string.unpin), unpinIntent)
 
         NotificationManagerCompat.from(context).notify(record.notificationId, builder.build())
     }
