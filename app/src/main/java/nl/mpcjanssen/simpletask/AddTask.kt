@@ -108,9 +108,14 @@ class AddTask : ThemedActionBarActivity() {
         Log.d(TAG, "Fill addtask")
 
         val taskId = intent.getStringExtra(Constants.EXTRA_TASK_ID)
-        if (taskId != null) {
-            val task = TodoApplication.todoList.getTaskWithId(taskId)
-            if (task != null) TodoApplication.todoList.pendingEdits.add(task)
+        val pinnedTaskKey = intent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        val taskToEdit = when {
+            taskId != null -> TodoApplication.todoList.getTaskWithId(taskId)
+            pinnedTaskKey != null -> TodoApplication.pinnedTaskNotifications.findTaskForPinnedKey(pinnedTaskKey)
+            else -> null
+        }
+        if (taskToEdit != null) {
+            TodoApplication.todoList.pendingEdits.add(taskToEdit)
         }
 
         val pendingTasks = TodoApplication.todoList.pendingEdits.map { it.inFileFormat(TodoApplication.config.useUUIDs) }
@@ -290,6 +295,12 @@ class AddTask : ThemedActionBarActivity() {
             return
         }
 
+        if (origTasks.size == 1 && enteredTasks.size == 1) {
+            TodoApplication.pinnedTaskNotifications.retargetPinnedTaskForTaskEdit(
+                originalTaskText = origTasks.first().text,
+                updatedTaskText = enteredTasks.single().text
+            )
+        }
         todoList.update(origTasks, enteredTasks, TodoApplication.config.hasAppendAtEnd)
 
         // Save

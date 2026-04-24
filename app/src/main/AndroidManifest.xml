@@ -26,6 +26,7 @@ You should have received a copy of the GNU General Public License along with Sim
     package="nl.mpcjanssen.simpletask"
     >
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <supports-screens
@@ -202,6 +203,21 @@ You should have received a copy of the GNU General Public License along with Sim
         <service
             android:name=".MarkTaskDone"
             />
+        <service
+            android:name=".UnpinTaskNotification"
+            />
+        <receiver
+            android:name=".PinnedNotificationDismissedReceiver"
+            android:exported="false"
+            />
+        <receiver
+            android:name=".PinnedNotificationBootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         <receiver android:name="nl.mpcjanssen.simpletask.AlarmReceiver"/>
         <uses-library
             android:name="com.sec.android.app.multiwindow"

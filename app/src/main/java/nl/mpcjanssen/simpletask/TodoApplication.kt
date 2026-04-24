@@ -35,8 +35,6 @@ import android.app.Application
 import android.app.PendingIntent
 import android.app.NotificationManager
 import android.app.NotificationChannel
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.NotificationCompat
 import android.appwidget.AppWidgetManager
 import android.content.*
 import android.os.Build
@@ -52,6 +50,7 @@ import nl.mpcjanssen.simpletask.dao.TodoFile
 import nl.mpcjanssen.simpletask.remote.BackupInterface
 import nl.mpcjanssen.simpletask.remote.FileDialog
 import nl.mpcjanssen.simpletask.remote.FileStore
+import nl.mpcjanssen.simpletask.notifications.PinnedTaskNotificationManager
 import nl.mpcjanssen.simpletask.task.Task
 import nl.mpcjanssen.simpletask.task.TodoList
 import nl.mpcjanssen.simpletask.util.*
@@ -74,6 +73,7 @@ class TodoApplication : Application() {
         db = Room.databaseBuilder(this,
                 AppDatabase::class.java, DB_FILE).fallbackToDestructiveMigration()
                 .build()
+        pinnedTaskNotifications = PinnedTaskNotificationManager(this)
         if (config.forceEnglish) {
             val conf = resources.configuration
             conf.locale = Locale.ENGLISH
@@ -99,13 +99,13 @@ class TodoApplication : Application() {
                         CalendarSync.syncLater()
                         redrawWidgets()
                         updateWidgets()
-                        updatePinnedNotifications()
+                        pinnedTaskNotifications.reconcileWithCurrentTodoList("task list changed")
                     }
                     intent.action == Constants.BROADCAST_UPDATE_WIDGETS -> {
                         Log.i(TAG, "Refresh widgets from broadcast")
                         redrawWidgets()
                         updateWidgets()
-                        updatePinnedNotifications()
+                        pinnedTaskNotifications.reconcileWithCurrentTodoList("widgets updated")
                     }
                     intent.action == Constants.BROADCAST_FILE_SYNC -> loadTodoList("From BROADCAST_FILE_SYNC")
                 }
@@ -218,19 +218,6 @@ class TodoApplication : Application() {
         }
     }
 
-    fun updatePinnedNotifications() {
-        Log.i(TAG, "Updating pinned notifications")
-        val notificationManager: NotificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.getActiveNotifications().forEach { 
-            val taskId = it.notification.extras.getString(Constants.EXTRA_TASK_ID)
-            if (taskId != null) {
-                val taskText = TodoApplication.todoList.getTaskWithId(taskId)?.text
-                val notification = NotificationCompat.Builder(this, it.notification).setContentTitle(taskText).build()
-                notificationManager.notify(it.id, notification)
-            }
-        }       
-    }
-
     fun clearTodoFile() {
         config.clearCache()
         config.setTodoFile(null)
@@ -264,7 +251,7 @@ class TodoApplication : Application() {
             val name = getString(R.string.channel_name)
             val descriptionText = getString(R.string.channel_description)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel("pin-notifications", name, importance).apply {
+            val channel = NotificationChannel(Constants.PINNED_TASK_NOTIFICATION_CHANNEL_ID, name, importance).apply {
                 description = descriptionText
             }
             // Register the channel with the system
@@ -282,6 +269,7 @@ class TodoApplication : Application() {
         lateinit var config : Config
         lateinit var todoList: TodoList
         lateinit var db : AppDatabase
+        lateinit var pinnedTaskNotifications: PinnedTaskNotificationManager
     }
     var today: String = todayAsString
 }
