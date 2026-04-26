@@ -61,6 +61,7 @@ object Constants {
     const val EXTRA_PREFILL_TEXT = "prefill_text"
     const val EXTRA_TASK_ID = "taskid"
     const val EXTRA_PINNED_TASK_KEY = "pinned_task_key"
+    const val EXTRA_OPEN_PINNED_TASK = "open_pinned_task"
     const val EXTRA_TARGET_TODO_FILE = "target_todo_file"
     const val EXTRA_FROM_LAUNCHER_SHORTCUT = "from_launcher_shortcut"
 

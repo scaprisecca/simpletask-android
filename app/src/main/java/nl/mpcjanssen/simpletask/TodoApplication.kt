@@ -39,7 +39,6 @@ import android.appwidget.AppWidgetManager
 import android.content.*
 import android.os.Build
 import android.os.SystemClock
-import androidx.multidex.MultiDexApplication
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.util.Log
 import androidx.room.Room
@@ -54,7 +53,6 @@ import nl.mpcjanssen.simpletask.notifications.PinnedTaskNotificationManager
 import nl.mpcjanssen.simpletask.task.Task
 import nl.mpcjanssen.simpletask.task.TodoList
 import nl.mpcjanssen.simpletask.util.*
-import nl.mpcjanssen.simpletask.Constants
 import java.io.File
 import java.util.*
 
@@ -119,6 +117,7 @@ class TodoApplication : Application() {
         Log.i(TAG, "Started ${appVersion(this)}")
         scheduleOnNewDay()
         scheduleRepeating()
+        pinnedTaskNotifications.restorePinnedNotifications("application onCreate")
     }
 
     private fun setupUncaughtExceptionHandler() {

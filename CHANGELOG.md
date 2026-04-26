@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Pinned task notifications can now be scheduled for a specific date and time, survive reboot/app restore, and still resolve the right task even when it lives in another todo file
 - Date lenses for All, Overdue, Today, This Week, and Upcoming are now available from the main task list and quick-filter drawer, with configurable week start and upcoming window settings
 - Favorite todo files can now be pinned as dedicated quick-add shortcuts that open the normal Add Task screen and save new tasks directly into the selected list
 - Favorite labels can now be added to favorite todo files to keep the favorites switcher and quick-add shortcut chooser easier to scan

@@ -13,6 +13,7 @@ package nl.mpcjanssen.simpletask
 
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.app.SearchManager
 import android.content.*
 import android.content.res.Configuration
@@ -97,6 +98,8 @@ class Simpletask : ThemedNoActionBarActivity() {
     private lateinit var calendarMonthPagerAdapter: CalendarMonthPagerAdapter
     private var calendarState = CalendarModeState()
     private var restoringCalendarPager = false
+    private var pendingPinnedTaskOpenKey: String? = null
+    private var pendingPinnedTaskOpenFilePath: String? = null
     private val calendarQuery = Query("calendarui").apply {
         hideCompleted = true
         hideHidden = true
@@ -188,6 +191,7 @@ class Simpletask : ThemedNoActionBarActivity() {
                     Log.i(TAG, "Tasklist changed, refiltering adapter")
                     runOnUiThread {
                         uiHandler.forEvent(Event.TASK_LIST_CHANGED)
+                        continuePendingPinnedTaskOpenIfReady()
                     }
                 } else if (receivedIntent.action == Constants.BROADCAST_HIGHLIGHT_SELECTION) {
                     Log.i(TAG, "Highligh selection")
@@ -744,6 +748,10 @@ class Simpletask : ThemedNoActionBarActivity() {
                 }
 
             }
+        }
+
+        if (currentIntent.getBooleanExtra(Constants.EXTRA_OPEN_PINNED_TASK, false)) {
+            handlePinnedTaskOpenIntent(currentIntent)
         }
 
         listView.layoutManager = LinearLayoutManager(this)
@@ -1573,7 +1581,7 @@ class Simpletask : ThemedNoActionBarActivity() {
         }
         menuItem.isVisible = true
         menuItem.title = if (TodoApplication.pinnedTaskNotifications.isPinned(selectedTasks.single())) {
-            getString(R.string.unpin_notification)
+            getString(R.string.manage_notification)
         } else {
             getString(R.string.pin_notification)
         }
@@ -1582,14 +1590,108 @@ class Simpletask : ThemedNoActionBarActivity() {
     private fun togglePinnedNotification(checkedTasks: List<Task>) {
         val task = checkedTasks.singleOrNull() ?: return
         if (TodoApplication.pinnedTaskNotifications.isPinned(task)) {
-            TodoApplication.pinnedTaskNotifications.unpinTask(task)
+            showPinnedNotificationManager(task)
         } else {
-            TodoApplication.pinnedTaskNotifications.pinTask(task)
+            showPinnedNotificationSchedule(task)
         }
         if (!TodoApplication.config.hasKeepSelection) {
             TodoApplication.todoList.clearSelection()
         }
         invalidateOptionsMenu()
+    }
+
+    private fun showPinnedNotificationManager(task: Task) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.manage_notification)
+            .setPositiveButton(R.string.unpin) { _, _ ->
+                TodoApplication.pinnedTaskNotifications.unpinTask(task)
+                invalidateOptionsMenu()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun showPinnedNotificationSchedule(task: Task) {
+        val initialCalendar = Calendar.getInstance()
+        val dateDialog = DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val selectedCalendar = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                TimePickerDialog(
+                    this,
+                    { _, hourOfDay, minute ->
+                        selectedCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        selectedCalendar.set(Calendar.MINUTE, minute)
+                        TodoApplication.pinnedTaskNotifications.pinTask(task, selectedCalendar.timeInMillis)
+                        invalidateOptionsMenu()
+                    },
+                    initialCalendar.get(Calendar.HOUR_OF_DAY),
+                    initialCalendar.get(Calendar.MINUTE),
+                    android.text.format.DateFormat.is24HourFormat(this)
+                ).show()
+            },
+            initialCalendar.get(Calendar.YEAR),
+            initialCalendar.get(Calendar.MONTH),
+            initialCalendar.get(Calendar.DAY_OF_MONTH)
+        )
+        val showCalendar = TodoApplication.config.showCalendar
+        dateDialog.datePicker.calendarViewShown = showCalendar
+        dateDialog.datePicker.spinnersShown = !showCalendar
+        dateDialog.setTitle(getString(R.string.pin_notification))
+        dateDialog.show()
+    }
+
+    private fun handlePinnedTaskOpenIntent(currentIntent: Intent) {
+        val taskKey = currentIntent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY) ?: return
+        val targetTodoFilePath = currentIntent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE) ?: run {
+            currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
+            currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+            return
+        }
+        val currentPath = try {
+            TodoApplication.config.todoFile.canonicalPath
+        } catch (_: Exception) {
+            TodoApplication.config.todoFile.absolutePath
+        }
+        currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
+        if (targetTodoFilePath == currentPath) {
+            openPinnedTaskEditor(taskKey)
+            currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+            return
+        }
+        pendingPinnedTaskOpenKey = taskKey
+        pendingPinnedTaskOpenFilePath = targetTodoFilePath
+        TodoApplication.app.switchTodoFile(File(targetTodoFilePath))
+    }
+
+    private fun continuePendingPinnedTaskOpenIfReady() {
+        val taskKey = pendingPinnedTaskOpenKey ?: return
+        val targetPath = pendingPinnedTaskOpenFilePath ?: return
+        val currentPath = try {
+            TodoApplication.config.todoFile.canonicalPath
+        } catch (_: Exception) {
+            TodoApplication.config.todoFile.absolutePath
+        }
+        if (currentPath != targetPath) {
+            return
+        }
+        pendingPinnedTaskOpenKey = null
+        pendingPinnedTaskOpenFilePath = null
+        openPinnedTaskEditor(taskKey)
+        intent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+    }
+
+    private fun openPinnedTaskEditor(taskKey: String) {
+        startActivity(Intent(this, AddTask::class.java).apply {
+            putExtra(Constants.EXTRA_PINNED_TASK_KEY, taskKey)
+        })
     }
 
     private inner class UiHandler () {

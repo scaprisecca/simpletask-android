@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.*
 import nl.mpcjanssen.simpletask.notifications.PinnedTaskRecord
 
-const val SCHEMA_VERSION=1014
+const val SCHEMA_VERSION=1015
 const val DB_FILE="TodoFiles_v1.db"
 
 @Entity
@@ -55,7 +55,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun todoFileDao(): TodoFileDao
     abstract fun pinnedTaskRecordDao(): PinnedTaskRecordDao
 }
-
 
 
 

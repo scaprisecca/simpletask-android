@@ -4,13 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 
-class PinnedNotificationBootReceiver : BroadcastReceiver() {
+class PinnedTaskAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
-        TodoApplication.pinnedTaskNotifications.restorePinnedNotifications(
-            reason = "Pinned notification restore: ${intent.action}",
+        TodoApplication.pinnedTaskNotifications.handleScheduledTrigger(
+            taskKey = intent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY),
             onComplete = { pendingResult.finish() }
         )
-        TodoApplication.app.loadTodoList("Pinned notification restore: ${intent.action}")
     }
 }
