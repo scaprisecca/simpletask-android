@@ -9,6 +9,7 @@ import androidx.core.app.NotificationManagerCompat
 import nl.mpcjanssen.simpletask.AddTask
 import nl.mpcjanssen.simpletask.Constants
 import nl.mpcjanssen.simpletask.MarkTaskDone
+import nl.mpcjanssen.simpletask.PinnedNotificationDismissedReceiver
 import nl.mpcjanssen.simpletask.R
 import nl.mpcjanssen.simpletask.TodoApplication
 import nl.mpcjanssen.simpletask.UnpinTaskNotification
@@ -221,9 +222,9 @@ class PinnedTaskNotificationManager(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
-        val dismissedIntent = Intent(context, UnpinTaskNotification::class.java).let {
+        val dismissedIntent = Intent(context, PinnedNotificationDismissedReceiver::class.java).let {
             it.putExtra(Constants.EXTRA_PINNED_TASK_KEY, record.taskKey)
-            PendingIntent.getService(
+            PendingIntent.getBroadcast(
                 context,
                 record.notificationId + 2,
                 it,

@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Close button in calendar view for returning to task list
 
 ### Fixed
-- Pinned task notifications now restore more reliably after reboot and app updates, and notification controls now expose a dedicated Unpin action while swipe-away also unpins the task
+- Pinned task notifications now restore more reliably after reboot and app updates, expose a dedicated Unpin action, and reappear after swipe-away instead of silently unpinning
 - Pinned task notifications now survive app reloads and device reboot, stay in sync after task edits, and let you unpin or complete the correct task from the notification
 - Quick-add shortcuts now launch in their own capture flow so saving or cancelling returns cleanly instead of leaving the main app open unexpectedly
 - File-specific quick-add sessions now load context/project suggestions from the shortcut target file instead of the currently active file
