@@ -11,8 +11,30 @@ enum class PinnedTaskDeliveryState {
     }
 }
 
+enum class PinnedTaskDisplayState {
+    NONE,
+    PINNED,
+    SCHEDULED
+}
+
 fun PinnedTaskRecord.deliveryState(): PinnedTaskDeliveryState {
     return PinnedTaskDeliveryState.fromPersisted(deliveryState)
+}
+
+fun PinnedTaskRecord.displayState(nowMillis: Long = System.currentTimeMillis()): PinnedTaskDisplayState {
+    return if (isScheduledForFuture(nowMillis)) {
+        PinnedTaskDisplayState.SCHEDULED
+    } else {
+        PinnedTaskDisplayState.PINNED
+    }
+}
+
+fun decoratePinnedTaskText(text: String, displayState: PinnedTaskDisplayState): String {
+    return when (displayState) {
+        PinnedTaskDisplayState.NONE -> text
+        PinnedTaskDisplayState.PINNED -> "📌 $text"
+        PinnedTaskDisplayState.SCHEDULED -> "⏰ $text"
+    }
 }
 
 fun PinnedTaskRecord.isScheduledDelivery(): Boolean = deliveryState() == PinnedTaskDeliveryState.SCHEDULED

@@ -17,10 +17,10 @@ class PinnedTaskTaskResolver(
     private val activeTasksProvider: () -> List<Task> = { TodoApplication.todoList.allTasks() },
     private val loadTasksFromFile: (File) -> List<String> = { FileStore.loadTasksFromFile(it) }
 ) {
-    fun resolve(record: PinnedTaskRecord): PinnedTaskResolution? {
+    fun resolve(record: PinnedTaskRecord, preferActiveTodoList: Boolean = true): PinnedTaskResolution? {
         val activeTodoFile = activeTodoFileProvider()
         val recordFile = File(record.todoFilePath)
-        val usesActiveTodoFile = canonicalPath(activeTodoFile) == canonicalPath(recordFile)
+        val usesActiveTodoFile = preferActiveTodoList && canonicalPath(activeTodoFile) == canonicalPath(recordFile)
         val task = if (usesActiveTodoFile) {
             findTask(record, activeTasksProvider(), record.todoFilePath)
         } else {
@@ -36,9 +36,7 @@ class PinnedTaskTaskResolver(
 
     companion object {
         fun findTask(record: PinnedTaskRecord, tasks: List<Task>, todoFilePath: String): Task? {
-            return tasks.firstOrNull {
-                !it.isCompleted() && PinnedTaskKey.from(todoFilePath, it.text) == record.taskKey
-            }
+            return findPinnedTask(record, tasks)
         }
 
         fun canonicalPath(file: File): String {

@@ -108,7 +108,10 @@ class TaskAdapter(val completeAction: (Task) -> Unit,
                 else -> true
             }
         }
-        val txt = Interpreter.onDisplayCallback(query.luaModule, task) ?: task.showParts(tokensToShowFilter)
+        val txt = TodoApplication.pinnedTaskNotifications.decorateTaskText(
+            task,
+            Interpreter.onDisplayCallback(query.luaModule, task) ?: task.showParts(tokensToShowFilter)
+        )
         val ss = SpannableString(txt)
 
         task.lists?.mapTo(ArrayList()) { "@$it" }?.let { setColor(ss, Color.GRAY, it) }

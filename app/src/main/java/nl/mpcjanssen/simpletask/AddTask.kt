@@ -19,6 +19,8 @@ import android.view.Window
 import android.view.WindowManager
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.databinding.AddTaskBinding
+import nl.mpcjanssen.simpletask.notifications.findPinnedTaskInFileLines
+import nl.mpcjanssen.simpletask.notifications.replacePinnedTaskInFileLines
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Priority
 import nl.mpcjanssen.simpletask.task.Task
@@ -41,6 +43,8 @@ class AddTask : ThemedActionBarActivity() {
     private var launchedFromShortcut = false
     private var usesIsolatedTargetMetadata = false
     private var targetMetadataSuggestions = QuickAddMetadataSuggestions(emptyList(), emptyList())
+    private var explicitTargetEditOriginalText: String? = null
+    private var explicitTargetEditPinnedTaskKey: String? = null
     /*
         Deprecated functions still work fine.
         For now keep using the old version, will updated if it breaks.
@@ -109,20 +113,32 @@ class AddTask : ThemedActionBarActivity() {
 
         val taskId = intent.getStringExtra(Constants.EXTRA_TASK_ID)
         val pinnedTaskKey = intent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        val directPinnedTargetEdit = pinnedTaskKey != null && quickAddTargetResolution.hasExplicitTarget
         val taskToEdit = when {
             taskId != null -> TodoApplication.todoList.getTaskWithId(taskId)
-            pinnedTaskKey != null -> TodoApplication.pinnedTaskNotifications.findTaskForPinnedKey(pinnedTaskKey)
+            pinnedTaskKey != null && !directPinnedTargetEdit -> TodoApplication.pinnedTaskNotifications.findTaskForPinnedKey(pinnedTaskKey)
             else -> null
         }
         if (taskToEdit != null) {
             TodoApplication.todoList.pendingEdits.add(taskToEdit)
         }
+        val explicitTargetEditPrefill = if (pinnedTaskKey != null && directPinnedTargetEdit) {
+            loadPinnedTaskTextFromExplicitTarget(pinnedTaskKey, quickAddTargetResolution.targetFile)
+        } else {
+            null
+        }
+        explicitTargetEditOriginalText = explicitTargetEditPrefill
+        explicitTargetEditPinnedTaskKey = if (explicitTargetEditPrefill != null) pinnedTaskKey else null
 
         val pendingTasks = TodoApplication.todoList.pendingEdits.map { it.inFileFormat(TodoApplication.config.useUUIDs) }
             val preFillString: String = when {
                 pendingTasks.isNotEmpty() -> {
                     setTitle(R.string.updatetask)
                     join(pendingTasks, "\n")
+                }
+                explicitTargetEditPrefill != null -> {
+                    setTitle(R.string.updatetask)
+                    explicitTargetEditPrefill
                 }
                 intent.hasExtra(Constants.EXTRA_PREFILL_TEXT) -> intent.getStringExtra(Constants.EXTRA_PREFILL_TEXT) ?: ""
                 intent.hasExtra(Query.INTENT_JSON) -> Query(intent, luaModule = "from_intent").prefill
@@ -275,7 +291,23 @@ class AddTask : ThemedActionBarActivity() {
         }
         val origTasks = todoList.pendingEdits
         val targetResolution = quickAddTargetResolution
+        val pinnedTargetEditOriginalText = explicitTargetEditOriginalText
+        val pinnedTargetEditTaskKey = explicitTargetEditPinnedTaskKey
         Log.i(TAG, "Saving ${enteredTasks.size} tasks, updating $origTasks tasks")
+
+        if (pinnedTargetEditTaskKey != null && pinnedTargetEditOriginalText != null) {
+            if (enteredTasks.size != 1) {
+                showToastShort(this, R.string.shortcut_addtask_new_tasks_only)
+                return
+            }
+            savePinnedTaskEditToExplicitTarget(
+                taskKey = pinnedTargetEditTaskKey,
+                targetFile = targetResolution.targetFile,
+                updatedTask = enteredTasks.single(),
+                onSuccess = { finishEdit(confirmation = false) }
+            )
+            return
+        }
 
         if (targetResolution.hasExplicitTarget && origTasks.isNotEmpty()) {
             showToastShort(this, R.string.shortcut_addtask_new_tasks_only)
@@ -297,7 +329,7 @@ class AddTask : ThemedActionBarActivity() {
 
         if (origTasks.size == 1 && enteredTasks.size == 1) {
             TodoApplication.pinnedTaskNotifications.retargetPinnedTaskForTaskEdit(
-                originalTaskText = origTasks.first().text,
+                task = origTasks.first(),
                 updatedTaskText = enteredTasks.single().text
             )
         }
@@ -336,6 +368,57 @@ class AddTask : ThemedActionBarActivity() {
                 })
             } catch (e: Exception) {
                 Log.e(TAG, "Quick-add save to ${targetFile.path} failed", e)
+                runOnMainThread(Runnable {
+                    showToastLong(TodoApplication.app, getString(R.string.favorite_file_unavailable, targetFile.name))
+                })
+            }
+        }
+    }
+
+    private fun loadPinnedTaskTextFromExplicitTarget(taskKey: String, targetFile: java.io.File): String? {
+        val record = TodoApplication.db.pinnedTaskRecordDao().get(taskKey) ?: return null
+        return try {
+            findPinnedTaskInFileLines(record, FileStore.loadTasksFromFile(targetFile))?.text
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to load pinned task $taskKey from ${targetFile.path}", e)
+            null
+        }
+    }
+
+    private fun savePinnedTaskEditToExplicitTarget(
+        taskKey: String,
+        targetFile: java.io.File,
+        updatedTask: Task,
+        onSuccess: () -> Unit
+    ) {
+        FileStoreActionQueue.add("Save pinned task edit") {
+            try {
+                synchronized(explicitTargetSaveLock) {
+                    val record = TodoApplication.db.pinnedTaskRecordDao().get(taskKey)
+                        ?: throw IOException("Pinned task record missing for $taskKey")
+                    val existingLines = FileStore.loadTasksFromFile(targetFile)
+                    val updatedLine = updatedTask.inFileFormat(TodoApplication.config.useUUIDs)
+                    val updatedLines = replacePinnedTaskInFileLines(record, existingLines, updatedLine)
+                        ?: throw IOException("Pinned task line not found in ${targetFile.path}")
+                    val savedFile = FileStore.saveTasksToFile(targetFile, updatedLines, TodoApplication.config.eol)
+                    val persistedLines = FileStore.loadTasksFromFile(savedFile)
+                    if (persistedLines != updatedLines) {
+                        throw IOException("Pinned task edit verification failed for ${targetFile.path}")
+                    }
+                    TodoApplication.pinnedTaskNotifications.retargetPinnedTaskForTaskEdit(
+                        taskKey = taskKey,
+                        updatedTaskText = Task(updatedLine).text
+                    )
+                }
+                runOnMainThread(Runnable {
+                    broadcastRefreshWidgets(TodoApplication.app.localBroadCastManager)
+                    if (targetFile == TodoApplication.config.todoFile) {
+                        TodoApplication.app.loadTodoList("Pinned notification edit")
+                    }
+                    onSuccess()
+                })
+            } catch (e: Exception) {
+                Log.e(TAG, "Pinned task edit save to ${targetFile.path} failed", e)
                 runOnMainThread(Runnable {
                     showToastLong(TodoApplication.app, getString(R.string.favorite_file_unavailable, targetFile.name))
                 })

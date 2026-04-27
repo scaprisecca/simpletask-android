@@ -16,6 +16,15 @@ class PinnedTaskKeyTest : TestCase() {
         assertFalse(original == updated)
     }
 
+    fun testFromIncludesOccurrenceIndexForDuplicateTasks() {
+        val first = PinnedTaskKey.from("/tmp/simpletasks/todo.txt", "Buy batteries", occurrenceIndex = 0)
+        val second = PinnedTaskKey.from("/tmp/simpletasks/todo.txt", "Buy batteries", occurrenceIndex = 1)
+
+        assertFalse(first == second)
+        assertEquals(0, PinnedTaskKey.occurrenceIndex(first))
+        assertEquals(1, PinnedTaskKey.occurrenceIndex(second))
+    }
+
     fun testRetargetForTaskTextEditRekeysPinnedRecord() {
         val record = PinnedTaskRecord(
             taskKey = PinnedTaskKey.from("/tmp/simpletasks/todo.txt", "Read chapter 1"),

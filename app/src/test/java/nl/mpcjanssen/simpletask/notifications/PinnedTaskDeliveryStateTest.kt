@@ -40,4 +40,23 @@ class PinnedTaskDeliveryStateTest : TestCase() {
         assertEquals(PinnedTaskRecord.TRIGGER_MODE_SCHEDULED, record.triggerMode)
         assertEquals(7_000L, record.triggerAtMillis)
     }
+
+    fun testDisplayStateUsesScheduledMarkerOnlyForFuturePins() {
+        val scheduled = PinnedTaskRecord(
+            taskKey = "task",
+            todoFilePath = "/tmp/todo.txt",
+            taskText = "Call bank",
+            createdAt = 1L
+        ).asScheduledRecord(triggerAtMillis = 5_000L)
+        val posted = scheduled.asPostedRecord("Call bank")
+
+        assertEquals(PinnedTaskDisplayState.SCHEDULED, scheduled.displayState(nowMillis = 4_000L))
+        assertEquals(PinnedTaskDisplayState.PINNED, posted.displayState(nowMillis = 4_000L))
+    }
+
+    fun testDecorateTaskTextAddsVisualIndicatorWithoutChangingUnderlyingTask() {
+        assertEquals("📌 Check smoke alarms", decoratePinnedTaskText("Check smoke alarms", PinnedTaskDisplayState.PINNED))
+        assertEquals("⏰ Check smoke alarms", decoratePinnedTaskText("Check smoke alarms", PinnedTaskDisplayState.SCHEDULED))
+        assertEquals("Check smoke alarms", decoratePinnedTaskText("Check smoke alarms", PinnedTaskDisplayState.NONE))
+    }
 }
