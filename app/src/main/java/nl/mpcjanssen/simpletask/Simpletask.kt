@@ -255,6 +255,9 @@ class Simpletask : ThemedNoActionBarActivity() {
            // Only change intent if it actually contains a applyFilter
         }
         Log.i(TAG, "onNewIntent: $intent")
+        if (intent.getBooleanExtra(Constants.EXTRA_OPEN_PINNED_TASK, false)) {
+            handleIntent()
+        }
 
     }
 
@@ -262,7 +265,7 @@ class Simpletask : ThemedNoActionBarActivity() {
         super.onResume()
 
         Log.i(TAG, "onResume")
-        TodoApplication.todoList.reload(reason = "Main activity resume")
+        TodoApplication.app.loadTodoList(reason = "Main activity resume", todoFile = TodoApplication.config.todoFile)
         Log.i(TAG,"onResume -> handleIntent")
         handleIntent()
         Log.i(TAG,"onResume <- handleIntent")

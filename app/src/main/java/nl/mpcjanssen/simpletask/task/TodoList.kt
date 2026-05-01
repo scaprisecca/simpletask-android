@@ -243,11 +243,14 @@ class TodoList(val config: Config) {
     }
 
 
-    fun reload(reason: String = "", onComplete: ((Boolean) -> Unit)? = null) {
+    fun reload(
+        reason: String = "",
+        todoFile: File = config.todoFile,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
         FileStoreActionQueue.add("Reload") {
-            Log.d(tag, "Reload: $reason")
+            Log.d(tag, "Reload: $reason for ${todoFile.path}")
 
-            val todoFile = config.todoFile
             if (config.changesPending && FileStore.isOnline) {
                 Log.i(tag, "Not loading, changes pending")
                 Log.i(tag, "Saving instead of loading")

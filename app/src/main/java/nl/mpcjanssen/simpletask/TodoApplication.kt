@@ -200,8 +200,9 @@ class TodoApplication : Application() {
             return false
         } else {
             val previousTodoFile = config.todoFile
-            config.setTodoFile(newTodo)
-            loadTodoList("from file switch") { succeeded ->
+            val targetTodoFile = newTodo
+            config.setTodoFile(targetTodoFile)
+            loadTodoList(reason = "from file switch", todoFile = targetTodoFile) { succeeded ->
                 if (!succeeded) {
                     config.setTodoFile(previousTodoFile)
                 }
@@ -211,11 +212,15 @@ class TodoApplication : Application() {
         }
     }
 
-    fun loadTodoList(reason: String, onComplete: ((Boolean) -> Unit)? = null) {
-        Log.i(TAG, "Loading todolist")
-        todoList.reload(reason = reason) { succeeded ->
+    fun loadTodoList(
+        reason: String,
+        todoFile: File = config.todoFile,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        Log.i(TAG, "Loading todolist for ${todoFile.path}")
+        todoList.reload(reason = reason, todoFile = todoFile) { succeeded ->
             if (succeeded) {
-                loadedTodoFilePath = canonicalTodoFilePath(config.todoFile)
+                loadedTodoFilePath = canonicalTodoFilePath(todoFile)
             }
             onComplete?.invoke(succeeded)
         }
