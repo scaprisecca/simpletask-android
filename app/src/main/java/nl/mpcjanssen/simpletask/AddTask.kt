@@ -19,7 +19,7 @@ import android.view.Window
 import android.view.WindowManager
 import hirondelle.date4j.DateTime
 import nl.mpcjanssen.simpletask.databinding.AddTaskBinding
-import nl.mpcjanssen.simpletask.notifications.findPinnedTaskInFileLines
+import nl.mpcjanssen.simpletask.notifications.findPinnedTask
 import nl.mpcjanssen.simpletask.notifications.replacePinnedTaskInFileLines
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Priority
@@ -113,17 +113,19 @@ class AddTask : ThemedActionBarActivity() {
 
         val taskId = intent.getStringExtra(Constants.EXTRA_TASK_ID)
         val pinnedTaskKey = intent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        val pinnedTaskText = intent.getStringExtra(Constants.EXTRA_PINNED_TASK_TEXT)
         val directPinnedTargetEdit = pinnedTaskKey != null && quickAddTargetResolution.hasExplicitTarget
         val taskToEdit = when {
             taskId != null -> TodoApplication.todoList.getTaskWithId(taskId)
-            pinnedTaskKey != null && !directPinnedTargetEdit -> TodoApplication.pinnedTaskNotifications.findTaskForPinnedKey(pinnedTaskKey)
+            pinnedTaskKey != null && pinnedTaskText != null && !directPinnedTargetEdit ->
+                findPinnedTask(pinnedTaskKey, pinnedTaskText, TodoApplication.todoList.allTasks())
             else -> null
         }
         if (taskToEdit != null) {
             TodoApplication.todoList.pendingEdits.add(taskToEdit)
         }
-        val explicitTargetEditPrefill = if (pinnedTaskKey != null && directPinnedTargetEdit) {
-            loadPinnedTaskTextFromExplicitTarget(pinnedTaskKey, quickAddTargetResolution.targetFile)
+        val explicitTargetEditPrefill = if (pinnedTaskKey != null && pinnedTaskText != null && directPinnedTargetEdit) {
+            loadPinnedTaskTextFromExplicitTarget(pinnedTaskKey, pinnedTaskText, quickAddTargetResolution.targetFile)
         } else {
             null
         }
@@ -375,10 +377,9 @@ class AddTask : ThemedActionBarActivity() {
         }
     }
 
-    private fun loadPinnedTaskTextFromExplicitTarget(taskKey: String, targetFile: java.io.File): String? {
-        val record = TodoApplication.db.pinnedTaskRecordDao().get(taskKey) ?: return null
+    private fun loadPinnedTaskTextFromExplicitTarget(taskKey: String, taskText: String, targetFile: java.io.File): String? {
         return try {
-            findPinnedTaskInFileLines(record, FileStore.loadTasksFromFile(targetFile))?.text
+            findPinnedTask(taskKey, taskText, FileStore.loadTasksFromFile(targetFile).map(::Task))?.text
         } catch (e: Exception) {
             Log.e(TAG, "Unable to load pinned task $taskKey from ${targetFile.path}", e)
             null

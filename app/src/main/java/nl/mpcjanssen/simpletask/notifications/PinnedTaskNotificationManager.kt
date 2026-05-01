@@ -374,6 +374,7 @@ class PinnedTaskNotificationManager(private val context: Context) {
             it.action = Intent.ACTION_VIEW
             it.putExtra(Constants.EXTRA_OPEN_PINNED_TASK, true)
             it.putExtra(Constants.EXTRA_PINNED_TASK_KEY, record.taskKey)
+            it.putExtra(Constants.EXTRA_PINNED_TASK_TEXT, record.taskText)
             it.putExtra(Constants.EXTRA_TARGET_TODO_FILE, record.todoFilePath)
             it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             PendingIntent.getActivity(

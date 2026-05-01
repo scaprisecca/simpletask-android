@@ -99,6 +99,7 @@ class Simpletask : ThemedNoActionBarActivity() {
     private var calendarState = CalendarModeState()
     private var restoringCalendarPager = false
     private var pendingPinnedTaskOpenKey: String? = null
+    private var pendingPinnedTaskOpenText: String? = null
     private var pendingPinnedTaskOpenFilePath: String? = null
     private val calendarQuery = Query("calendarui").apply {
         hideCompleted = true
@@ -1658,6 +1659,7 @@ class Simpletask : ThemedNoActionBarActivity() {
 
     private fun handlePinnedTaskOpenIntent(currentIntent: Intent) {
         val taskKey = currentIntent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY) ?: return
+        val taskText = currentIntent.getStringExtra(Constants.EXTRA_PINNED_TASK_TEXT)
         val targetTodoFilePath = currentIntent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE) ?: run {
             clearPinnedTaskOpenIntentExtras(currentIntent)
             return
@@ -1666,10 +1668,11 @@ class Simpletask : ThemedNoActionBarActivity() {
         val configuredPath = currentTodoFilePath()
         clearPinnedTaskOpenIntentExtras(currentIntent)
         if (targetTodoFilePath == loadedPath) {
-            openPinnedTaskEditor(taskKey, targetTodoFilePath)
+            openPinnedTaskEditor(taskKey, taskText, targetTodoFilePath)
             return
         }
         pendingPinnedTaskOpenKey = taskKey
+        pendingPinnedTaskOpenText = taskText
         pendingPinnedTaskOpenFilePath = targetTodoFilePath
         if (targetTodoFilePath == configuredPath) {
             return
@@ -1686,20 +1689,26 @@ class Simpletask : ThemedNoActionBarActivity() {
 
     private fun continuePendingPinnedTaskOpenIfReady() {
         val taskKey = pendingPinnedTaskOpenKey ?: return
+        val taskText = pendingPinnedTaskOpenText
         val targetPath = pendingPinnedTaskOpenFilePath ?: return
         val currentPath = TodoApplication.app.loadedTodoFilePath ?: return
         if (currentPath != targetPath) {
             return
         }
         clearPendingPinnedTaskOpen()
-        openPinnedTaskEditor(taskKey, targetPath)
+        openPinnedTaskEditor(taskKey, taskText, targetPath)
     }
 
-    private fun openPinnedTaskEditor(taskKey: String, targetTodoFilePath: String? = null) {
+    private fun openPinnedTaskEditor(taskKey: String, taskText: String?, targetTodoFilePath: String? = null) {
+        val currentPath = TodoApplication.app.loadedTodoFilePath ?: currentTodoFilePath()
+        val includeExplicitTarget = targetTodoFilePath != null && targetTodoFilePath != currentPath
         startActivity(Intent(this, AddTask::class.java).apply {
             putExtra(Constants.EXTRA_PINNED_TASK_KEY, taskKey)
-            targetTodoFilePath?.let {
-                putExtra(Constants.EXTRA_TARGET_TODO_FILE, it)
+            taskText?.let {
+                putExtra(Constants.EXTRA_PINNED_TASK_TEXT, it)
+            }
+            if (includeExplicitTarget) {
+                putExtra(Constants.EXTRA_TARGET_TODO_FILE, targetTodoFilePath)
             }
         })
     }
@@ -1715,11 +1724,13 @@ class Simpletask : ThemedNoActionBarActivity() {
     private fun clearPinnedTaskOpenIntentExtras(currentIntent: Intent) {
         currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
         currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_TEXT)
         currentIntent.removeExtra(Constants.EXTRA_TARGET_TODO_FILE)
     }
 
     private fun clearPendingPinnedTaskOpen() {
         pendingPinnedTaskOpenKey = null
+        pendingPinnedTaskOpenText = null
         pendingPinnedTaskOpenFilePath = null
     }
 
