@@ -688,6 +688,10 @@ fun broadcastRefreshSelection(broadcastManager: LocalBroadcastManager) {
     broadcastManager.sendBroadcast(Intent(Constants.BROADCAST_HIGHLIGHT_SELECTION))
 }
 
+fun broadcastPinnedTasksChanged(broadcastManager: LocalBroadcastManager) {
+    broadcastManager.sendBroadcast(Intent(Constants.BROADCAST_PINNED_TASKS_CHANGED))
+}
+
 fun broadcastRefreshWidgets(broadcastManager: LocalBroadcastManager) {
     Log.i(TAG, "Sending widget refresh broadcast")
     broadcastManager.sendBroadcast(Intent(Constants.BROADCAST_UPDATE_WIDGETS))

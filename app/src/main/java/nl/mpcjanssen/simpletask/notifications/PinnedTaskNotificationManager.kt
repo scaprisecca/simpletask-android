@@ -9,13 +9,13 @@ import androidx.core.app.NotificationManagerCompat
 import nl.mpcjanssen.simpletask.Constants
 import nl.mpcjanssen.simpletask.MarkTaskDone
 import nl.mpcjanssen.simpletask.PinnedNotificationDismissedReceiver
-import nl.mpcjanssen.simpletask.AddTask
 import nl.mpcjanssen.simpletask.R
 import nl.mpcjanssen.simpletask.TodoApplication
 import nl.mpcjanssen.simpletask.UnpinTaskNotification
 import nl.mpcjanssen.simpletask.remote.FileStore
 import nl.mpcjanssen.simpletask.task.Priority
 import nl.mpcjanssen.simpletask.task.Task
+import nl.mpcjanssen.simpletask.util.broadcastPinnedTasksChanged
 import nl.mpcjanssen.simpletask.util.broadcastRefreshWidgets
 import nl.mpcjanssen.simpletask.util.todayAsString
 import java.io.File
@@ -52,7 +52,6 @@ class PinnedTaskNotificationManager(private val context: Context) {
     fun pinTask(task: Task, triggerAtMillis: Long? = null) {
         val taskKey = activeTaskKey(task) ?: return
         val todoFilePath = currentTodoFilePath() ?: return
-        pinnedTaskDisplayStates = pinnedTaskDisplayStates + (taskKey to PinnedTaskDisplayState.PINNED)
         executor.execute {
             val dao = TodoApplication.db.pinnedTaskRecordDao()
             val existing = dao.get(taskKey)
@@ -65,7 +64,7 @@ class PinnedTaskNotificationManager(private val context: Context) {
             }
             dao.upsert(record)
             deliverRecord(record)
-            refreshPinnedTaskKeys()
+            refreshPinnedTaskKeysAndNotify()
         }
     }
 
@@ -74,13 +73,12 @@ class PinnedTaskNotificationManager(private val context: Context) {
     }
 
     fun unpinTaskByKey(taskKey: String) {
-        pinnedTaskDisplayStates = pinnedTaskDisplayStates - taskKey
         executor.execute {
             val dao = TodoApplication.db.pinnedTaskRecordDao()
             val record = dao.get(taskKey)
             dao.deleteByTaskKey(taskKey)
             record?.let { cancelAlarmAndNotification(it) }
-            refreshPinnedTaskKeys()
+            refreshPinnedTaskKeysAndNotify()
         }
     }
 
@@ -98,9 +96,8 @@ class PinnedTaskNotificationManager(private val context: Context) {
             cancelAlarmAndNotification(record)
             dao.deleteByTaskKey(taskKey)
             dao.upsert(updated)
-            pinnedTaskDisplayStates = (pinnedTaskDisplayStates - taskKey) + (updated.taskKey to updated.displayState())
             deliverRecord(updated)
-            refreshPinnedTaskKeys()
+            refreshPinnedTaskKeysAndNotify()
         }
     }
 
@@ -140,13 +137,13 @@ class PinnedTaskNotificationManager(private val context: Context) {
                 } ?: run {
                     dao.deleteByTaskKey(taskKey)
                     cancelAlarmAndNotification(record)
-                    refreshPinnedTaskKeys()
+                    refreshPinnedTaskKeysAndNotify()
                     return@execute
                 }
                 val updated = record.asPostedRecord(resolution.task.text)
                 dao.upsert(updated)
                 postNotification(updated)
-                refreshPinnedTaskKeys()
+                refreshPinnedTaskKeysAndNotify()
             } finally {
                 onComplete?.invoke()
             }
@@ -177,7 +174,7 @@ class PinnedTaskNotificationManager(private val context: Context) {
         }
         if (resolution == null) {
             dao.deleteByTaskKey(taskKey)
-            refreshPinnedTaskKeys()
+            refreshPinnedTaskKeysAndNotify()
             cancelAlarmAndNotification(record)
             return false
         }
@@ -192,7 +189,7 @@ class PinnedTaskNotificationManager(private val context: Context) {
         }
 
         dao.deleteByTaskKey(taskKey)
-        refreshPinnedTaskKeys()
+        refreshPinnedTaskKeysAndNotify()
         cancelAlarmAndNotification(record)
         broadcastRefreshWidgets(TodoApplication.app.localBroadCastManager)
         return true
@@ -214,16 +211,25 @@ class PinnedTaskNotificationManager(private val context: Context) {
             .associate { it.taskKey to it.displayState() }
     }
 
+    private fun refreshPinnedTaskKeysAndNotify() {
+        refreshPinnedTaskKeys()
+        broadcastPinnedTasksChanged(TodoApplication.app.localBroadCastManager)
+    }
+
     private fun reconcileAllRecords(reason: String) {
         val dao = TodoApplication.db.pinnedTaskRecordDao()
         val records = dao.getAll()
         Log.i(TAG, "Reconciling pinned notifications for $reason")
+        var updatedCount = 0
+        var deletedCount = 0
+        var skippedCount = 0
         records.forEach { record ->
             try {
                 val resolution = resolveRecord(record, preferActiveTodoList = false)
                 if (resolution == null) {
                     dao.deleteByTaskKey(record.taskKey)
                     cancelAlarmAndNotification(record)
+                    deletedCount += 1
                 } else {
                     val updated = record.copy(
                         taskText = resolution.task.text,
@@ -231,14 +237,20 @@ class PinnedTaskNotificationManager(private val context: Context) {
                     )
                     if (updated != record) {
                         dao.upsert(updated)
+                        updatedCount += 1
                     }
                     deliverRecord(updated)
                 }
             } catch (e: Exception) {
+                skippedCount += 1
                 Log.w(TAG, "Skipping pinned-task reconcile for ${record.taskKey}", e)
             }
         }
-        refreshPinnedTaskKeys()
+        refreshPinnedTaskKeysAndNotify()
+        Log.i(
+            TAG,
+            "Pinned notification reconcile complete for $reason: records=${records.size}, updated=$updatedCount, deleted=$deletedCount, skipped=$skippedCount"
+        )
     }
 
     private fun resolveRecord(record: PinnedTaskRecord, preferActiveTodoList: Boolean = true): PinnedTaskResolution? {
@@ -358,7 +370,9 @@ class PinnedTaskNotificationManager(private val context: Context) {
     }
 
     private fun postNotification(record: PinnedTaskRecord) {
-        val editIntent = Intent(context, AddTask::class.java).let {
+        val editIntent = Intent(context, nl.mpcjanssen.simpletask.Simpletask::class.java).let {
+            it.action = Intent.ACTION_VIEW
+            it.putExtra(Constants.EXTRA_OPEN_PINNED_TASK, true)
             it.putExtra(Constants.EXTRA_PINNED_TASK_KEY, record.taskKey)
             it.putExtra(Constants.EXTRA_TARGET_TODO_FILE, record.todoFilePath)
             it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

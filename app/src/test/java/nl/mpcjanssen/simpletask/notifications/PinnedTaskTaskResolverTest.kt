@@ -100,4 +100,24 @@ class PinnedTaskTaskResolverTest : TestCase() {
         assertFalse(resolution!!.usesActiveTodoFile)
         assertEquals("Correct task", resolution.task.text)
     }
+
+    fun testResolveReturnsMatchingDuplicateFromExternalFileByOccurrenceIndex() {
+        val record = PinnedTaskRecord(
+            taskKey = PinnedTaskKey.from("/tmp/other.txt", "Buy batteries", occurrenceIndex = 1),
+            todoFilePath = "/tmp/other.txt",
+            taskText = "Buy batteries",
+            createdAt = 1L
+        )
+        val resolver = PinnedTaskTaskResolver(
+            activeTodoFileProvider = { File("/tmp/todo.txt") },
+            activeTasksProvider = { emptyList() },
+            loadTasksFromFile = { listOf("Buy batteries", "Buy batteries", "Call vendor") }
+        )
+
+        val resolution = resolver.resolve(record, preferActiveTodoList = false)
+
+        assertNotNull(resolution)
+        assertFalse(resolution!!.usesActiveTodoFile)
+        assertEquals("Buy batteries", resolution.task.text)
+    }
 }

@@ -61,6 +61,9 @@ class TodoApplication : Application() {
     private lateinit var androidUncaughtExceptionHandler: Thread.UncaughtExceptionHandler
     lateinit var localBroadCastManager: LocalBroadcastManager
     private lateinit var m_broadcastReceiver: BroadcastReceiver
+    @Volatile
+    var loadedTodoFilePath: String? = null
+        private set
 
 
     override fun onCreate() {
@@ -184,20 +187,46 @@ class TodoApplication : Application() {
     }
 
     fun switchTodoFile(newTodo: File) {
+        switchTodoFile(newTodo, onComplete = null)
+    }
+
+    fun switchTodoFile(newTodo: File, onComplete: ((Boolean) -> Unit)? = null): Boolean {
         if (config.changesPending) {
             // Don't switch files when there are pending changes. This will lead to
             // data corruption
             Log.i(TAG, "Not switching, changes pending")
             showToastLong(app, "Not switching files when changes are pending")
+            onComplete?.invoke(false)
+            return false
         } else {
+            val previousTodoFile = config.todoFile
             config.setTodoFile(newTodo)
-            loadTodoList("from file switch")
+            loadTodoList("from file switch") { succeeded ->
+                if (!succeeded) {
+                    config.setTodoFile(previousTodoFile)
+                }
+                onComplete?.invoke(succeeded)
+            }
+            return true
         }
     }
 
-    fun loadTodoList(reason: String) {
+    fun loadTodoList(reason: String, onComplete: ((Boolean) -> Unit)? = null) {
         Log.i(TAG, "Loading todolist")
-        todoList.reload(reason = reason)
+        todoList.reload(reason = reason) { succeeded ->
+            if (succeeded) {
+                loadedTodoFilePath = canonicalTodoFilePath(config.todoFile)
+            }
+            onComplete?.invoke(succeeded)
+        }
+    }
+
+    private fun canonicalTodoFilePath(file: File): String {
+        return try {
+            file.canonicalPath
+        } catch (_: Exception) {
+            file.absolutePath
+        }
     }
 
     fun updateWidgets() {

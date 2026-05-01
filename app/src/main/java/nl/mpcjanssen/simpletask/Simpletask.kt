@@ -120,6 +120,7 @@ class Simpletask : ThemedNoActionBarActivity() {
         intentFilter.addAction(Constants.BROADCAST_SYNC_DONE)
         intentFilter.addAction(Constants.BROADCAST_STATE_INDICATOR)
         intentFilter.addAction(Constants.BROADCAST_HIGHLIGHT_SELECTION)
+        intentFilter.addAction(Constants.BROADCAST_PINNED_TASKS_CHANGED)
 
         var itemTouchHelper: ItemTouchHelper? = null
 
@@ -197,6 +198,9 @@ class Simpletask : ThemedNoActionBarActivity() {
                     Log.i(TAG, "Highligh selection")
                     taskAdapter.notifyDataSetChanged()
                     invalidateOptionsMenu()
+                } else if (receivedIntent.action == Constants.BROADCAST_PINNED_TASKS_CHANGED) {
+                    Log.i(TAG, "Pinned task state changed")
+                    refreshPinnedTaskUi()
                 } else if (receivedIntent.action == Constants.BROADCAST_SYNC_START) {
                     showListViewProgress(true)
                 } else if (receivedIntent.action == Constants.BROADCAST_SYNC_DONE) {
@@ -1651,47 +1655,76 @@ class Simpletask : ThemedNoActionBarActivity() {
     private fun handlePinnedTaskOpenIntent(currentIntent: Intent) {
         val taskKey = currentIntent.getStringExtra(Constants.EXTRA_PINNED_TASK_KEY) ?: return
         val targetTodoFilePath = currentIntent.getStringExtra(Constants.EXTRA_TARGET_TODO_FILE) ?: run {
-            currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
-            currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+            clearPinnedTaskOpenIntentExtras(currentIntent)
             return
         }
-        val currentPath = try {
-            TodoApplication.config.todoFile.canonicalPath
-        } catch (_: Exception) {
-            TodoApplication.config.todoFile.absolutePath
-        }
-        currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
-        if (targetTodoFilePath == currentPath) {
-            openPinnedTaskEditor(taskKey)
-            currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        val loadedPath = TodoApplication.app.loadedTodoFilePath
+        val configuredPath = currentTodoFilePath()
+        clearPinnedTaskOpenIntentExtras(currentIntent)
+        if (targetTodoFilePath == loadedPath) {
+            openPinnedTaskEditor(taskKey, targetTodoFilePath)
             return
         }
         pendingPinnedTaskOpenKey = taskKey
         pendingPinnedTaskOpenFilePath = targetTodoFilePath
-        TodoApplication.app.switchTodoFile(File(targetTodoFilePath))
+        if (targetTodoFilePath == configuredPath) {
+            return
+        }
+        val started = TodoApplication.app.switchTodoFile(File(targetTodoFilePath)) { succeeded ->
+            if (!succeeded) {
+                clearPendingPinnedTaskOpen()
+            }
+        }
+        if (!started) {
+            clearPendingPinnedTaskOpen()
+        }
     }
 
     private fun continuePendingPinnedTaskOpenIfReady() {
         val taskKey = pendingPinnedTaskOpenKey ?: return
         val targetPath = pendingPinnedTaskOpenFilePath ?: return
-        val currentPath = try {
+        val currentPath = TodoApplication.app.loadedTodoFilePath ?: return
+        if (currentPath != targetPath) {
+            return
+        }
+        clearPendingPinnedTaskOpen()
+        openPinnedTaskEditor(taskKey, targetPath)
+    }
+
+    private fun openPinnedTaskEditor(taskKey: String, targetTodoFilePath: String? = null) {
+        startActivity(Intent(this, AddTask::class.java).apply {
+            putExtra(Constants.EXTRA_PINNED_TASK_KEY, taskKey)
+            targetTodoFilePath?.let {
+                putExtra(Constants.EXTRA_TARGET_TODO_FILE, it)
+            }
+        })
+    }
+
+    private fun refreshPinnedTaskUi() {
+        taskAdapter.notifyDataSetChanged()
+        if (calendarState.active) {
+            refreshCalendarMode()
+        }
+        invalidateOptionsMenu()
+    }
+
+    private fun clearPinnedTaskOpenIntentExtras(currentIntent: Intent) {
+        currentIntent.removeExtra(Constants.EXTRA_OPEN_PINNED_TASK)
+        currentIntent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
+        currentIntent.removeExtra(Constants.EXTRA_TARGET_TODO_FILE)
+    }
+
+    private fun clearPendingPinnedTaskOpen() {
+        pendingPinnedTaskOpenKey = null
+        pendingPinnedTaskOpenFilePath = null
+    }
+
+    private fun currentTodoFilePath(): String {
+        return try {
             TodoApplication.config.todoFile.canonicalPath
         } catch (_: Exception) {
             TodoApplication.config.todoFile.absolutePath
         }
-        if (currentPath != targetPath) {
-            return
-        }
-        pendingPinnedTaskOpenKey = null
-        pendingPinnedTaskOpenFilePath = null
-        openPinnedTaskEditor(taskKey)
-        intent.removeExtra(Constants.EXTRA_PINNED_TASK_KEY)
-    }
-
-    private fun openPinnedTaskEditor(taskKey: String) {
-        startActivity(Intent(this, AddTask::class.java).apply {
-            putExtra(Constants.EXTRA_PINNED_TASK_KEY, taskKey)
-        })
     }
 
     private inner class UiHandler () {

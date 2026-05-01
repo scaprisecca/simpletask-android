@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pinned task notifications now restore more reliably after reboot and app updates, expose a dedicated Unpin action, and reappear after swipe-away instead of silently unpinning
 - Pinned task notifications now survive app reloads and device reboot, stay in sync after task edits, and let you unpin or complete the correct task from the notification
 - Pinned notifications now open safely from the notification shade, show visual indicators in the task list for posted vs scheduled pins, and more reliably restore/edit the correct task across files and duplicate task text
+- Pinned task notifications now refresh in-app pin state immediately after pin or unpin actions, restore posted notifications after reboot without requiring an app open, and route notification taps through the correct todo-file switch before opening the editor
 - Quick-add shortcuts now launch in their own capture flow so saving or cancelling returns cleanly instead of leaving the main app open unexpectedly
 - File-specific quick-add sessions now load context/project suggestions from the shortcut target file instead of the currently active file
 - File-specific quick-add now shows a warning and stays out of the way if another Add Task editor is already open

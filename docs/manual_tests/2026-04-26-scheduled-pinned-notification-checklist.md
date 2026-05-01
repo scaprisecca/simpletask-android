@@ -40,6 +40,7 @@ Use this checklist on a real Android device or emulator with notification permis
 5. verify a notification appears immediately
 6. verify the toolbar action label now reads `Manage notification`
 7. verify the notification text matches the pinned task text
+8. verify the in-app pin indicator appears without any extra tap or manual refresh
 
 **expected**
 - notification posts immediately
@@ -87,10 +88,12 @@ Use this checklist on a real Android device or emulator with notification permis
 1. create an immediate pin
 2. from the notification shade, tap `Unpin`
 3. verify the notification disappears
-4. reopen the app and verify the task is no longer pinned
+4. if the app is already visible, verify the in-app pin indicator clears immediately
+5. reopen the app if needed and verify the task is no longer pinned
 
 **expected**
 - unpin works from the notification itself
+- app UI reflects the unpin without requiring another interaction
 - no duplicate or re-posted notification returns afterward
 
 ### 6) done from notification action
@@ -172,11 +175,12 @@ Use this checklist on a real Android device or emulator with notification permis
 1. schedule one future notification and create one immediate/posted pin
 2. reboot the device before the future trigger time
 3. after boot, wait for app restore to settle
-4. verify the posted notification is restored
+4. verify the posted notification is restored before manually opening the app
 5. verify the scheduled one still fires once
 
 **expected**
 - boot/package restore logic restores both record types correctly
+- posted notifications do not require a manual app open before they reappear
 - no double-posting occurs
 
 ### 14) duplicate text regression
@@ -191,7 +195,7 @@ Use this checklist on a real Android device or emulator with notification permis
 
 **expected**
 - note any mismatch carefully
-- this is a known weak area because keying still depends on file path + task text
+- duplicate-key regression remains stable for the current file path + task text + occurrence-index model
 
 ## failure notes to capture
 If anything fails, record:

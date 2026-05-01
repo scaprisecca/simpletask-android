@@ -243,7 +243,7 @@ class TodoList(val config: Config) {
     }
 
 
-    fun reload(reason: String = "") {
+    fun reload(reason: String = "", onComplete: ((Boolean) -> Unit)? = null) {
         FileStoreActionQueue.add("Reload") {
             Log.d(tag, "Reload: $reason")
 
@@ -252,18 +252,20 @@ class TodoList(val config: Config) {
                 Log.i(tag, "Not loading, changes pending")
                 Log.i(tag, "Saving instead of loading")
                 save(FileStore, todoFile, eol = config.eol)
+                onComplete?.invoke(false)
             } else {
-                reloadaction(todoFile)
+                reloadaction(todoFile, onComplete)
             }
 
         }
     }
 
 
-    private fun reloadaction(file: File) {
+    private fun reloadaction(file: File, onComplete: ((Boolean) -> Unit)?) {
         Log.d(tag, "Executing reloadaction")
         broadcastFileSyncStart(TodoApplication.app.localBroadCastManager)
         val needSync = FileStore.needSync(file)
+        var reloadSucceeded = false
         if (needSync) {
             Log.i(tag, "Remote version is different, sync")
             try {
@@ -280,6 +282,7 @@ class TodoList(val config: Config) {
                 FileStoreActionQueue.add("Backup") {
                     Backupper.backup(file, items)
                 }
+                reloadSucceeded = true
                 notifyTasklistChanged(file, save = false, refreshMainUI = true)
             } catch (e: Exception) {
                 Log.e(tag, "TodoList load failed: ${file.path}", e)
@@ -289,8 +292,10 @@ class TodoList(val config: Config) {
             Log.i(tag, "TodoList loaded from filestore")
         } else {
             Log.i(tag, "Remote version is same, load from cache")
+            reloadSucceeded = true
         }
         broadcastFileSyncDone(TodoApplication.app.localBroadCastManager)
+        onComplete?.invoke(reloadSucceeded)
     }
 
 
