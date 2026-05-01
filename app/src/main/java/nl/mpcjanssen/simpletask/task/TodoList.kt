@@ -270,13 +270,7 @@ class TodoList(val config: Config) {
             Log.i(tag, "Remote version is different, sync")
             try {
                 val items = FileStore.loadTasksFromFile(file)
-
-                val newTodoItems = items.map { Task(it) }.toMutableList()
-                synchronized(todoItems) {
-                    Log.d(tag, "Fill todolist with ${items.size} items")
-                    todoItems = newTodoItems
-                    config.todoList = todoItems.toList()
-                }
+                replaceTodoItems(items)
                 // Update cache
                 // Backup
                 FileStoreActionQueue.add("Backup") {
@@ -292,10 +286,30 @@ class TodoList(val config: Config) {
             Log.i(tag, "TodoList loaded from filestore")
         } else {
             Log.i(tag, "Remote version is same, load from cache")
-            reloadSucceeded = true
+            try {
+                val cachedItems = config.todoList?.map { it.inFileFormat(config.useUUIDs) }
+                val items = cachedItems ?: FileStore.loadTasksFromFile(file)
+                replaceTodoItems(items)
+                reloadSucceeded = true
+                notifyTasklistChanged(file, save = false, refreshMainUI = true)
+            } catch (e: Exception) {
+                Log.e(tag, "TodoList cache load failed: ${file.path}", e)
+                showToastShort(TodoApplication.app, "Loading of todo file failed")
+            }
         }
         broadcastFileSyncDone(TodoApplication.app.localBroadCastManager)
         onComplete?.invoke(reloadSucceeded)
+    }
+
+    private fun replaceTodoItems(items: List<String>) {
+        val newTodoItems = items.map { Task(it) }.toMutableList()
+        synchronized(todoItems) {
+            Log.d(tag, "Fill todolist with ${items.size} items")
+            todoItems = newTodoItems
+            config.todoList = todoItems.toList()
+        }
+        mLists = null
+        mTags = null
     }
 
 

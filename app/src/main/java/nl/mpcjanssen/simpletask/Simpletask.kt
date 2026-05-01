@@ -1277,7 +1277,8 @@ class Simpletask : ThemedNoActionBarActivity() {
     ) {
         val rows = FavoriteFileSwitcherModel.buildRows(
             TodoApplication.config.favoriteTodoFiles,
-            TodoApplication.config.todoFile
+            TodoApplication.config.todoFile,
+            TodoApplication.app.loadedTodoFilePath
         )
         adapter.submitRows(rows)
         val empty = rows.isEmpty()

@@ -34,4 +34,20 @@ class FavoriteFileSwitcherModelTest : TestCase() {
 
         assertTrue(rows.single().isActive)
     }
+
+    fun testBuildRowsPrefersLoadedFilePathWhenConfiguredFileIsAheadOfUi() {
+        val favorites = listOf(
+            FavoriteTodoFile("/tmp/file_a.txt"),
+            FavoriteTodoFile("/tmp/file_b.txt")
+        )
+
+        val rows = FavoriteFileSwitcherModel.buildRows(
+            favorites = favorites,
+            activeFile = File("/tmp/file_a.txt"),
+            loadedFilePath = "/tmp/file_b.txt"
+        )
+
+        assertFalse(rows[0].isActive)
+        assertTrue(rows[1].isActive)
+    }
 }

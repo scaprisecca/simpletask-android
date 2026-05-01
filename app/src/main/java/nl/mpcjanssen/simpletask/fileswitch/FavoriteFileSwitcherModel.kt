@@ -10,12 +10,16 @@ data class FavoriteFileSwitcherRow(
 )
 
 object FavoriteFileSwitcherModel {
-    fun buildRows(favorites: List<FavoriteTodoFile>, activeFile: File): List<FavoriteFileSwitcherRow> {
-        val activePath = canonicalPath(activeFile)
+    fun buildRows(
+        favorites: List<FavoriteTodoFile>,
+        activeFile: File,
+        loadedFilePath: String? = null
+    ): List<FavoriteFileSwitcherRow> {
+        val activePath = loadedFilePath?.let { canonicalPath(File(it)) } ?: canonicalPath(activeFile)
         return favorites.map {
             FavoriteFileSwitcherRow(
                 favorite = it,
-                isActive = it.path == activePath,
+                isActive = canonicalPath(File(it.path)) == activePath,
                 title = it.displayName,
                 subtitle = it.detailText
             )
